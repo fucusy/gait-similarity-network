@@ -24,6 +24,42 @@ def merger_test_model():
 
     return final_model
 
+def cas_mt_model():
+    left_branch = Sequential()
+    left_branch.add(Convolution2D(16, 7, 7, border_mode='valid', input_shape=(1, 126, 126)))
+    left_branch.add(Activation('relu'))
+    left_branch.add(MaxPooling2D(pool_size=(2, 2)), border_mode='valid')
+
+    left_branch.add(Convolution2D(4, 7, 7, border_mode='valid', input_shape=(16, 60, 60)))
+    left_branch.add(Activation('relu'))
+    left_branch.add(MaxPooling2D(pool_size=(2, 2)), border_mode='valid')
+
+    # how to add normalization layer 
+    
+    right_branch = Sequential()
+    right_branch.add(Convolution2D(16, 7, 7, border_mode='valid', input_shape=(1, 126, 126)))
+    left_branch.add(Activation('relu'))
+    right_branch.add(MaxPooling2D(pool_size=(2, 2)), border_mode='valid')
+
+    right_branch.add(Convolution2D(4, 7, 7, border_mode='valid', input_shape=(16, 60, 60)))
+    left_branch.add(Activation('relu'))
+    right_branch.add(MaxPooling2D(pool_size=(2, 2)), border_mode='valid')
+    
+    merged = Merge([left_branch, right_branch], mode='concat')
+    
+    final_model = Sequential()
+    final_model.add(merged)
+    final_model.add(Dense(10, activation='softmax'))
+
+    final_model.compile(optimizer='rmsprop', loss='categorical_crossentropy')
+
+    # you can train the model by below example code
+    # final_model.fit([input_data_1, input_data_2], targets)  
+    # we pass one data array per model input
+
+    return final_model
+    
+
 if __name__ == "__main__":
     model = merger_test_model()
     # generate dummy data
