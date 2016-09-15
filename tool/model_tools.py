@@ -8,6 +8,7 @@ import sys
 sys.path.append('../')
 
 import config
+import pickle
 
 from keras.models import Sequential, model_from_json
 from keras.layers import Dense, Dropout, Flatten
@@ -24,104 +25,6 @@ from keras import backend as K
 import time
 
 logger = logging.getLogger("model_tool")
-
-class KerasFeatureExtractor(object):
-    '''
-        Using existing model to extract CNN features.
-        This class is mainly for the Sequential Keras Model, instead of the Keras Function API Model,
-        which means the feature layer index must be given.
-        The differences between them can be found in keras.io.
-    '''
-    def __init__(self,
-                 model_name, data_set, model_arch_file='', model_weights_file='', feature_layer_index=-1, feature_save_path=''):
-        self._model_name = model_name
-        self._data_set = data_set
-        self._model_arch_file = model_arch_file
-        self._model_weights_file = model_weights_file
-        self._feature_layer_index = feature_layer_index
-        self._feature_save_path = feature_save_path
-        if model_name == 'vgg_keras':
-            img_size = data_set.get_img_size()
-            self._model = vgg_std16_model(img_rows=img_size[1], img_cols=img_size[2], color_type=3,
-                                          model_weights_file=model_weights_file, continueFile='')
-        elif model_arch_file:
-            self._model = model_from_json(open(self._model_arch_file).read())
-            self._model.load_weights(self._model_weights_file)
-            print('compiling model %s.....'%(self._model_name))
-            self._model.compile(optimizer='sgd', loss='categorical_crossentropy', metrics=['accuracy'])
-
-        self._extractor = K.function([self._model.layers[0].input, K.learning_phase()],
-                                  [self._model.layers[feature_layer_index].output])
-
-    def extract_feature_images(self, images, save_file=''):
-        features = self._extractor([images, 0])[0]
-        if save_file:
-            with open(self._feature_save_path + save_file, 'wb') as f:
-                np.save(f, features)
-        return features
-
-    def extract_training_features(self):
-        folder = os.listdir(self._data_set._training_data_path)
-        total = len(folder)
-        ch = self._data_set._img_size[0]
-        trainingLabel = np.zeros((total), dtype=int)
-        i = 0
-        data = np.zeros((1, self._data_set._img_size[0], self._data_set._img_size[1], self._data_set._img_size[2]))
-        for f in folder:
-            i += 1
-            print('get training feature %d / %d'%(i, total))
-            trainingLabel[i-1] = np.int(f[0])
-            img = skio.imread(self._data_set._training_data_path+f)
-            if ch == 3:
-                img = img.swapaxes(1, 2)
-                img = img.swapaxes(0, 1)
-            data[0, ...] = img - self._data_set._mean_image
-            # output in test mode = 0
-            feat = self._extractor([data, 0])[0]
-            if i == 1:
-                trainingData = np.zeros((total, feat.shape[1]))
-                trainingData[i-1, :] = feat
-            else:
-                trainingData[i-1, :] = feat
-        with open(self._feature_save_path + 'training_features.npy', 'wb') as f:
-            np.save(f, trainingData)
-        with open(self._feature_save_path + 'training_labels.npy', 'wb') as f:
-            np.save(f, trainingLabel)
-#            sio.savemat(f, {'trainigData':trainingData, 'trainingLabel':trainingLabel})
-
-    def extract_testing_features(self):
-        folder = os.listdir(self._data_set._testing_data_path)
-        total = len(folder)
-        i = 0
-        imgNames = []
-        ch = self._data_set._img_size[0]
-        data = np.zeros((1, self._data_set._img_size[0], self._data_set._img_size[1], self._data_set._img_size[2]))
-        for f in folder:
-            i += 1
-            print('get testing feature %d / %d'%(i, total))
-            img = skio.imread(self._data_set._testing_data_path+f)
-            if ch == 3:
-                img = img.swapaxes(1, 2)
-                img = img.swapaxes(0, 1)
-            data[0, ...] = img - self._data_set._mean_image
-            # output in test mode = 0
-            feat = self._extractor([data, 0])[0]
-            imgName = f[:f.rfind('_')] + '.jpg'
-            imgNames.append(imgName)
-            if i == 1:
-                features = np.zeros((total, feat.shape[1]))
-                features[i-1, :] = feat
-            else:
-                features[i-1, :] = feat
-        
-        with open(self._feature_save_path + 'testing_features.npy', 'wb') as f:
-            np.save(f, features)
-        with open(self._feature_save_path + 'testing_names.npy', 'wb') as f:
-            np.save(f, np.array(imgNames))
-#        with open(self._feature_save_path + 'testing_features.mat', 'wb') as f:
-#            sio.savemat(f, {'testingData':features, 'imageName':imgNames})
-
-
 
 class KerasModel(object):
     def __init__(self, cnn_model, preprocess_func):
@@ -168,13 +71,20 @@ class KerasModel(object):
 
         # set index to zero, prepare for have_next function
         validation_data.reset_index()
-
+        have_print_data_shape = False
         while validation_data.have_next():
             x_valid, y_valid, _ = validation_data.next_fragment(self.fragment_size, need_label=True, preprocess_fuc=self.preprocess_func)
-            image_count += len(x_valid)
+            if not have_print_data_shape:
+                print("the input x_valid[0].shape data shape is", x_valid[0].shape)
+                print("the input x_valid[0][0].shape data shape is", x_valid[0][0].shape)
+                print("the input y_valid.shape data shape is", y_valid.shape)
+                print("y_valid[0]:", y_valid[0])
+                have_print_data_shape = not have_print_data_shape
+            image_count += len(x_valid[0])
             logger.info('%s | --> validation progress %d / %d'
                   % (self._model_name, image_count, validation_data.count()))
-            loss, acc = self._model.evaluate(x_valid, y_valid, batch_size=self._batch_size)
+            loss, acc = self._model.evaluate([x_valid[0], x_valid[1]], y_valid, batch_size=self._batch_size)
+
             eva_loss.append(loss)
             eva_acc.append(acc)
 
@@ -204,11 +114,13 @@ class KerasModel(object):
                     % (eva_loss, self.min_loss))
 
     def train_model(self, train_data, validation_data, save_best=True):
-        json_string = self._model.to_json()
         json_path = os.path.join(self._model_save_path, self._model_name + '.json')
         if not os.path.exists(self._model_save_path):
             os.makedirs(self._model_save_path)
-        open(json_path, 'w').write(json_string)
+
+        #json_string = self._model.to_json()
+        #open(json_path, 'w').write(json_string)
+        pickle.dump(self._model.get_config(), open( json_path, 'w'))
 
         fragment_size = config.CNN.load_image_to_memory_every_time
         if fragment_size > 0:
@@ -224,17 +136,20 @@ class KerasModel(object):
                 train_data.reset_index()
                 have_print_data_shape = False
 
-                validate_every_img = 4000
+                validate_every_img = config.CNN.val_every
                 validate_after = validate_every_img
                 while train_data.have_next():
                     x_train, y_train, _ = train_data.next_fragment(fragment_size,need_label=True, preprocess_fuc=self.preprocess_func)
-                    image_count += len(x_train)
+                    image_count += len(x_train[0])
                     if not have_print_data_shape:
-                        print("the input data shape is", x_train[0].shape)
+                        print("the input x_train[0].shape data shape is", x_train[0].shape)
+                        print("the input x_train[0][0].shape data shape is", x_train[0][0].shape)
+                        print("the input y_train.shape data shape is", y_train.shape)
+                        print("y_train[0]:", y_train[0])
                         have_print_data_shape = not have_print_data_shape
                     logging.info('%s | iter %03d --> training progress  %d / %d'
                                    % (self._model_name, it, image_count, train_data.count()))
-                    self._model.fit(x_train, y_train, batch_size=self._batch_size, nb_epoch=1, verbose=1)
+                    self._model.fit([x_train[0], x_train[1]], y_train, batch_size=self._batch_size, nb_epoch=1, verbose=1)
                     if image_count > validate_after:
                         self.validate(validation_data)
                         validate_after += validate_every_img
