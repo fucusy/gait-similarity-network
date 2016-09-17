@@ -4,7 +4,7 @@ __author__ = 'fucus'
 class Project:
 
     # required, your project's absolute path, in other way, it's the absolute path for this file
-    project_path = "/Users/fucus/Documents/irip/gait_recoginition/code/gait-simple-cnn"
+    project_path = "/home/chenqiang/github/gait-similarity-network/"
 
     driver_img_list_path = ""
 
@@ -32,25 +32,16 @@ class Project:
 
     vgg_weight_file_path = "/home/chenqiang/kaggle_driver_data/vgg16_weights.h5"
 
-class Data:
+class data:
+    train_type = "nm" 
+    train_seq = ["01", "02", "03", "04"] 
+    train_angle = "090" 
+     
+    test_type = "nm" 
+    test_seq = ["01", "02"] 
+    test_angle = "054"
 
-    img_size = [3, 224, 224]
-
-    mean_image_file_name = '%s/cache/meanImage.npy' % Project.project_path
-
-    image_crop = 'entire'# whether random crop images or not
-
-    color_mode = 'rgb'# 'gray'
-
-    fragment_size = 2048
-
-    batch_size = 32
-
-    class_num = 10
-
-    validation_split = 0.2
-
-
+    train_img_dirs = ["/home/chenqiang/data/gait-simple-cnn-data/%s-%s-%d-for-train-%s-%s-%d-for-test_extract_210_70" % (train_type, train_angle, len(train_seq), test_type, test_angle, len(test_seq))]
 
 class CNN:
     #
@@ -62,7 +53,7 @@ class CNN:
 
     fine_tuning_vgg_weight_file_path = ""
 
-    model_name = 'simple_cnn_for_test'
+    model_name = 'cas_mt_model'
 
     '''/path/to/json/vgg_self_exp1_keras_arch.json'''
     model_arch_file_name = '/home/liuzheng/competition/kaggle/distractedDrivers/vgg_self_exp1_keras_arch.json'
@@ -86,8 +77,10 @@ class CNN:
 
     feature_save_path = '%s/cache' % Project.project_path
 
-    load_image_to_memory_every_time = 1000
+    load_image_to_memory_every_time = 10000
 
     load_image_to_memory_every_time_when_test = 10000
 
-    lr = 1e-2
+    val_every = 500000
+
+    lr = 1e-4

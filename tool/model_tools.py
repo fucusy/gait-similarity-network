@@ -149,7 +149,8 @@ class KerasModel(object):
                         have_print_data_shape = not have_print_data_shape
                     logging.info('%s | iter %03d --> training progress  %d / %d'
                                    % (self._model_name, it, image_count, train_data.count()))
-                    self._model.fit([x_train[0], x_train[1]], y_train, batch_size=self._batch_size, nb_epoch=1, verbose=1)
+                    self._model.fit([x_train[0], x_train[1]], y_train, batch_size=self._batch_size,  verbose=1)
+
                     if image_count > validate_after:
                         self.validate(validation_data)
                         validate_after += validate_every_img

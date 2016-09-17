@@ -5,3 +5,6 @@
 
 # python auto file
 *.pyc
+
+# ignore cache
+cache
