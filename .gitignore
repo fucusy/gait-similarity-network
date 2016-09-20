@@ -8,3 +8,6 @@
 
 # ignore cache
 cache
+
+# ignore log
+nohup.out

@@ -45,7 +45,7 @@ def load_img_path_list(path):
     :return:
     """
     list_path = os.listdir(path)
-    result = ["%s/%s" % (path, x) for x in list_path if x.endswith("jpg") or x.endswith("png")]
+    result = ["%s/%s" % (path, x) for x in list_path if x.endswith("jpg") or x.endswith("png") or x.endswith("bmp")]
     return np.array(result)
 
 
@@ -199,6 +199,11 @@ class SimiDataSet(object):
                     self.pairs[0].append(label_to_imgs[l][i])
                     self.pairs[1].append(label_to_imgs[l][j])
                     self.simi.append(1)
+
+                    self.pairs[0].append(label_to_imgs[l][j])
+                    self.pairs[1].append(label_to_imgs[l][i])
+                    self.simi.append(1)
+
         for i in range(len(labels)):
             j = (i+1) % len(labels)
             l_i = labels[i]
@@ -254,11 +259,11 @@ class SimiDataSet(object):
 
         feature_list = self.pairs_2_pic(pairs, preprocess_fuc)
         for i in range(2):
+            if len(feature_list[i].shape) == 3:
+                feature_list[i] = feature_list[i].reshape(feature_list[i].shape[0], feature_list[i].shape[1], feature_list[i].shape[2], 1)
+
             print "feature_list shape"
             print feature_list[i].shape
-            if len(feature_list[i].shape) == 3:
-                feature_list[i] = feature_list[i].reshape(feature_list[i].shape[0], 1, feature_list[i].shape[1], feature_list[i].shape[2])
-
         img_paths = [[], []]
         for i in range(2):
             img_paths[i] = [os.path.basename(x) for x in pairs[i]]
