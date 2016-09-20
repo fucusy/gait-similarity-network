@@ -55,6 +55,7 @@ def siamses_test(data, val_data):
     right = siamses_test_share_part(x2, weights, biases)
     distance  = tf.sqrt(tf.reduce_mean(tf.pow(tf.sub(left, right),2),1,keep_dims=True))   
     loss = contrastive_loss(y, distance) 
+    val_loss = contrastive_loss(y, distance) 
     lr = 1e-3
     optimizer = tf.train.AdamOptimizer(lr).minimize(loss)
 
@@ -63,6 +64,17 @@ def siamses_test(data, val_data):
     fragment_size = 512
     batch_count = 0
     val_every_batch = 50
+    
+    # visualization
+    # op to write logs to Tensorboard
+    logs_path = './tensorflow_logs/'
+    summary_writer = tf.train.SummaryWriter(logs_path,graph=tf.get_default_graph())
+    tf.scalar_summary("train loss", loss)
+    tf.scalar_summary("validation loss", val_loss)
+    merged_summary_op = tf.merge_all_summaries()
+    print("Run the command line:\n" \
+          "--> tensorboard --logdir=./tensorflow_logs " \
+          "\nThen open http://0.0.0.0:6006/ into your web browser")
     with tf.Session() as sess:
         sess.run(init)
         data.reset_index()
@@ -70,15 +82,17 @@ def siamses_test(data, val_data):
             while data.have_next():
                 batch_count += 1
                 batch_x, batch_y, _ = data.next_fragment(fragment_size, need_label=True, preprocess_fuc=normalization_grey_image)
-                loss_val = sess.run(loss, feed_dict={x1: batch_x[0], x2:batch_x[1], y: batch_y})
-                print("epoch %02d, batch count, %05d: Minibatch loss=%0.2f" % (epoch, batch_count, loss_val))
+                loss_val, summary = sess.run([loss, merged_summary_op], feed_dict={x1: batch_x[0], x2:batch_x[1], y: batch_y})
+                print("epoch %02d, batch count, %05d: Minibatch loss=%0.2f" % (i, batch_count, loss_val))
+                summary_writer.add_summary(summary, batch_count)
 
                 sess.run(optimizer, feed_dict={x1: batch_x[0], x2:batch_x[1], y: batch_y})
                 if batch_count % val_every_batch == 0:
                     if not val_data.have_next():
                         val_data.reset_index()
                     batch_x, batch_y, _ = val_data.next_fragment(fragment_size, need_label=True, preprocess_fuc=normalization_grey_image)
-                    loss_val = sess.run(loss, feed_dict={x1: batch_x[0], x2:batch_x[1], y: batch_y})
+                    loss_val, summary = sess.run([val_loss, merged_summary_op], feed_dict={x1: batch_x[0], x2:batch_x[1], y: batch_y})
+                    summary_writer.add_summary(summary, batch_count)
                     print("epoch %02d, val loss=%0.2f" % (i, loss_val))
 if __name__ == '__main__':
     level = logging.INFO
