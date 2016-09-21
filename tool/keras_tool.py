@@ -12,6 +12,16 @@ import logging
 from keras.utils.np_utils import to_categorical
 
 
+def extract_info_from_path(path):
+    img_id = ''.join(os.path.basename(path).split('.')[:-1])
+    split_img_id = img_id.split('-')
+    hid = split_img_id[0]
+    cond = split_img_id[1]
+    seq = split_img_id[2]
+    view = split_img_id[3]
+    return hid, cond, seq, view
+
+
 
 def save_model(model, weight_path, structure_path=''):
     """
@@ -149,18 +159,17 @@ def load_train_validation_data_set(path):
     condition = ["nm"]
 
     for i in range(len(img_list)):
-        img_id = os.path.basename(img_list[i]).split('.')[0]
-        id = img_id.split("-")[0]
-        cond = img_id.split("-")[1]
+        hid, cond, seq, view = extract_info_from_path(img_list[i])
+
         if cond not in condition:
             continue
-        if id in val_ids:
+        if hid in val_ids:
             validation_img_list.append(img_list[i])
             validation_img_label.append(img_label[i])
-        elif id in train_ids:
+        elif hid in train_ids:
             train_img_list.append(img_list[i])
             train_img_label.append(img_label[i])
-        elif id in test_ids:
+        elif hid in test_ids:
             test_img_list.append(img_list[i])
             test_img_label.append(img_label[i])
 
@@ -186,9 +195,14 @@ class SimiDataSet(object):
         self.label_to_imgs = {}
         self.pre_func = img_preprocess
 
-        labels = set()
+        # change int label to str label
         for i in range(len(img_labels)):
             label = "%03d" % img_labels[i]
+            img_labels[i] = label
+
+        labels = set()
+        for i in range(len(img_labels)):
+            label = img_labels[i]
             img = img_paths[i]
             labels.add(label)
             if label not in self.label_to_imgs:
@@ -237,10 +251,7 @@ class SimiDataSet(object):
             return []
         imgs = []
         for img_path in self.label_to_imgs[hid]:
-            split_img_path = os.path.basename(img_path).split('-')
-            seq = split_img_path[2]
-            cond = split_img_path[1]
-            view = split_img_path[3]
+            hid, cond, seq, view = extract_info_from_path(img_path)
             if view == probe_view and cond == 'nm' and seq in ['05', '06']:
                 imgs.append(img_path)
         return imgs
@@ -261,11 +272,8 @@ class SimiDataSet(object):
         for i in range(len(self.img_paths)):
             img_p = self.img_paths[i]
             img_l = self.img_labels[i]
-            split_img_path = os.path.basename(img_path).split('-')
-            seq = split_img_path[2]
-            cond = split_img_path[1]
-            view = split_img_path[3]
-            if cond == 'nm' and view in ['01','02','03','04']:
+            hid, cond, seq, view = extract_info_from_path(img_p)
+            if cond == 'nm' and seq in ['01','02','03','04']:
                 paths.append(img_p)
                 labels.append(img_l)
         return paths, labels
@@ -348,11 +356,16 @@ if __name__ == '__main__':
         for n in img_list[0][0]:
             for m in n:
                 print m
+            break
         print(img_list[0][0])
         print(img_label)
-        probe_view = "018"
+        view = "018"
         label = train_data.labels[0]
-        imgs = train_data.get_probes(label, probe_view)
-        print("imgs of view:%s label:%s" % (probe_view, label))
+        imgs = train_data.get_probes(label, view)
+        print("imgs of view:%s label:%s" % (view, label))
         print(imgs)
+        imgs, labels = train_data.get_gallerys(view)
+        print("gallery imgs and labels of view:%s" % (view))
+        print(imgs)
+        print(labels)
         break

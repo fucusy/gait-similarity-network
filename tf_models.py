@@ -32,7 +32,7 @@ def siamses_test_share_part(x, weights, biases):
     out = tf.nn.dropout(out, dropout)
     return out
 
-def siamses_test(data, val_data):
+def siamses_test(data, val_data, test_data):
     x1 = tf.placeholder(tf.float32, [None, 210, 70, 1])
     x2 = tf.placeholder(tf.float32, [None, 210, 70, 1])
     y = tf.placeholder(tf.float32, [None, 2])
@@ -81,19 +81,59 @@ def siamses_test(data, val_data):
         for i in range(epoch):
             while data.have_next():
                 batch_count += 1
-                batch_x, batch_y, _ = data.next_fragment(fragment_size, need_label=True, preprocess_fuc=normalization_grey_image)
+                batch_x, batch_y, _ = data.next_fragment(fragment_size, need_label=True)
                 loss_val, summary = sess.run([loss, merged_summary_op], feed_dict={x1: batch_x[0], x2:batch_x[1], y: batch_y})
                 print("epoch %02d, batch count, %05d: Minibatch loss=%0.2f" % (i, batch_count, loss_val))
                 summary_writer.add_summary(summary, batch_count)
 
                 sess.run(optimizer, feed_dict={x1: batch_x[0], x2:batch_x[1], y: batch_y})
-                if batch_count % val_every_batch == 0:
+                if batch_count % val_every_batch == 1:
                     if not val_data.have_next():
                         val_data.reset_index()
-                    batch_x, batch_y, _ = val_data.next_fragment(fragment_size, need_label=True, preprocess_fuc=normalization_grey_image)
+                    batch_x, batch_y, _ = val_data.next_fragment(fragment_size, need_label=True)
                     loss_val, summary = sess.run([val_loss, merged_summary_op], feed_dict={x1: batch_x[0], x2:batch_x[1], y: batch_y})
                     summary_writer.add_summary(summary, batch_count)
                     print("epoch %02d, val loss=%0.2f" % (i, loss_val))
+                    
+                    # caculate reconition accuracy
+                    probe_view = "054"
+                    gallery_view = "018"
+                    g_imgs, g_labels = val_data.get_gallerys(gallery_view)
+                    g_vectors = []
+                    correct_count = 0
+                    total_count = 0
+                    g_vectors = sess.run(right, feed_dict={x2:g_imgs})
+                    for label in val_data.labels:
+                        p_imgs = val_data.get_probes(label, probe_view)
+                        p_vectors = sess.run(right, feed_dict={x2:p_imgs})
+                        min_dist = float("inf")
+                        min_label = "no_label"
+                        for p_v in p_vectors:
+                            total_count += 1
+                            for i in range(len(g_imgs)):
+                                g_v = g_vectors[i]
+                                g_l = g_labels[i]
+                                left_val = p_v.reshape((1, p_v.shape[0]))
+                                right_val = g_v.reshape((1, g_v.shape[0]))
+                                d = sess.run(distance,\
+                                    feed_dict={\
+                                        left:left_val,right:right_val})
+                                d = d[0]
+                                if d < min_dist:
+                                    min_dist = d
+                                    min_label = g_l
+                            if min_label == label:
+                                correct_count += 1
+
+                    if total_count > 0:
+                        accur = correct_count * 1.0 / total_count
+                    else:
+                        accur = 0
+                    print("probe view:%s, gallery view:%s\
+                            , accuracy: %d/%d=%0.2f"\
+                                    % (probe_view
+                                        , gallery_view
+                                        , correct_count, total_count, accur)) 
 if __name__ == '__main__':
     level = logging.INFO
     FORMAT = '%(asctime)-12s[%(levelname)s] %(message)s'
@@ -101,8 +141,8 @@ if __name__ == '__main__':
 
     train_img_dirs = config.data.train_img_dirs 
     print train_img_dirs 
-    train_data, validation_data = load_data(train_img_dirs)
+    train_data, validation_data, test_data = load_data(train_img_dirs)
 
     logging.info("train data image count %s" % train_data.count())
     logging.info("validation data image count %s" % validation_data.count())
-    siamses_test(train_data, validation_data)
+    siamses_test(train_data, validation_data, test_data)
