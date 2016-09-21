@@ -5,5 +5,10 @@
 
 # python auto file
 *.pyc
-*/__pycache__/
 
+# ignore cache
+cache
+
+# ignore log
+nohup.out
+*/__pycache__/
