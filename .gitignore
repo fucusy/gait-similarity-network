@@ -5,3 +5,5 @@
 
 # python auto file
 *.pyc
+*/__pycache__/
+
