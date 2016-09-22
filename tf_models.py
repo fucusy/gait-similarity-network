@@ -97,14 +97,14 @@ def siamses_test(data, val_data, test_data):
                     
                     # caculate reconition accuracy
                     probe_view = "054"
-                    gallery_view = "018"
-                    g_imgs, g_labels = val_data.get_gallerys(gallery_view)
+                    gallery_view = "000"
+                    g_imgs, g_labels = test_data.get_gallerys(gallery_view)
                     g_vectors = []
                     correct_count = 0
                     total_count = 0
                     g_vectors = sess.run(right, feed_dict={x2:g_imgs})
-                    for label in val_data.labels:
-                        p_imgs = val_data.get_probes(label, probe_view)
+                    for label in test_data.labels:
+                        p_imgs = test_data.get_probes(label, probe_view)
                         p_vectors = sess.run(right, feed_dict={x2:p_imgs})
                         min_dist = float("inf")
                         min_label = "no_label"
