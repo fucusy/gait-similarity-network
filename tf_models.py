@@ -3,6 +3,7 @@ import logging
 from tool.keras_tool import normalization_grey_image
 import config
 from tool.keras_tool import load_data
+import os
 
 # Create some wrappers for simplicity
 def conv2d(x, W, b, strides=1):
@@ -10,13 +11,13 @@ def conv2d(x, W, b, strides=1):
     x = tf.nn.bias_add(x, b)
     return tf.nn.relu(x)
 
-
 def maxpool2d(x, k=2):
     return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1], padding='SAME')
 
 def contrastive_loss(y,d):
+    q = 40000
     part1 = y * tf.square(d)
-    part2 = (1-y) * tf.square(tf.maximum((1 - d),0))
+    part2 = (1-y) * tf.square(tf.maximum((q - d),0))
     return tf.reduce_mean(part1 + part2)
 
 def siamses_test_share_part(x, weights, biases):
@@ -32,7 +33,10 @@ def siamses_test_share_part(x, weights, biases):
     out = tf.nn.dropout(out, dropout)
     return out
 
-def siamses_test(data, val_data, test_data):
+def siamses_test():
+    """
+    return a list of var
+    """
     x1 = tf.placeholder(tf.float32, [None, 210, 70, 1])
     x2 = tf.placeholder(tf.float32, [None, 210, 70, 1])
     y = tf.placeholder(tf.float32, [None, 2])
@@ -59,15 +63,63 @@ def siamses_test(data, val_data, test_data):
     lr = 1e-3
     optimizer = tf.train.AdamOptimizer(lr).minimize(loss)
 
+    return x1, x2, y, left, right, distance, loss, val_loss, optimizer
+
+def get_accuracy(sess, dataset, x1, x2, left, right, distance):
+    # caculate reconition accuracy
+    g_imgs, g_labels = dataset.get_gallerys()
+    g_vectors = []
+    g_vectors = sess.run(right, feed_dict={x2:g_imgs})
+    view_to_accu = {}
+    for probe_view in ["%03d" % x for x in range(0, 181, 18)]:
+        correct_count = 0
+        total_count = 0
+        for label in dataset.labels:
+            p_imgs = dataset.get_probes(label, probe_view)
+            p_vectors = sess.run(right, feed_dict={x2:p_imgs})
+            min_dist = float("inf")
+            min_label = "no_label"
+            for p_v in p_vectors:
+                total_count += 1
+                for i in range(len(g_imgs)):
+                    g_v = g_vectors[i]
+                    g_l = g_labels[i]
+                    left_val = p_v.reshape((1, p_v.shape[0]))
+                    right_val = g_v.reshape((1, g_v.shape[0]))
+                    d = sess.run(distance,\
+                        feed_dict={\
+                            left:left_val,right:right_val})
+                    d = d[0]
+                    if d < min_dist:
+                        min_dist = d
+                        min_label = g_l
+                if min_label == label:
+                    correct_count += 1
+        if total_count > 0:
+            accur = correct_count * 1.0 / total_count
+        else:
+            accur = 0
+        view_to_accu[probe_view] = accur
+    return view_to_accu
+
+def main(data, val_data, test_data):
+    x1, x2, y, left, right, distance,loss,val_loss,optimizer=siamses_test()
     init = tf.initialize_all_variables()
     epoch = 2
     fragment_size = 512
     batch_count = 0
-    val_every_batch = 50
+    val_every_batch = 100
     
     # visualization
-    # op to write logs to Tensorboard
-    logs_path = './tensorflow_logs/'
+    # op to write logs to path like 
+    tmp = 0
+    logs_path = './tensorflow_logs/%05d' % tmp
+    while os.path.exists(logs_path):
+        tmp += 1
+        logs_path = './tensorflow_logs/%05d' % tmp
+    os.makedirs(logs_path)
+        
+
     summary_writer = tf.train.SummaryWriter(logs_path,graph=tf.get_default_graph())
     tf.scalar_summary("train loss", loss)
     tf.scalar_summary("validation loss", val_loss)
@@ -87,53 +139,32 @@ def siamses_test(data, val_data, test_data):
                 summary_writer.add_summary(summary, batch_count)
 
                 sess.run(optimizer, feed_dict={x1: batch_x[0], x2:batch_x[1], y: batch_y})
-                if batch_count % val_every_batch == 1:
+                if batch_count % val_every_batch == 0:
                     if not val_data.have_next():
                         val_data.reset_index()
-                    batch_x, batch_y, _ = val_data.next_fragment(fragment_size, need_label=True)
+                    batch_x, batch_y, _ = val_data.next_fragment(\
+                                            fragment_size, need_label=True)
                     loss_val, summary = sess.run([val_loss, merged_summary_op], feed_dict={x1: batch_x[0], x2:batch_x[1], y: batch_y})
                     summary_writer.add_summary(summary, batch_count)
                     print("epoch %02d, val loss=%0.2f" % (i, loss_val))
-                    
-                    # caculate reconition accuracy
-                    probe_view = "054"
-                    gallery_view = "000"
-                    g_imgs, g_labels = test_data.get_gallerys(gallery_view)
-                    g_vectors = []
-                    correct_count = 0
-                    total_count = 0
-                    g_vectors = sess.run(right, feed_dict={x2:g_imgs})
-                    for label in test_data.labels:
-                        p_imgs = test_data.get_probes(label, probe_view)
-                        p_vectors = sess.run(right, feed_dict={x2:p_imgs})
-                        min_dist = float("inf")
-                        min_label = "no_label"
-                        for p_v in p_vectors:
-                            total_count += 1
-                            for i in range(len(g_imgs)):
-                                g_v = g_vectors[i]
-                                g_l = g_labels[i]
-                                left_val = p_v.reshape((1, p_v.shape[0]))
-                                right_val = g_v.reshape((1, g_v.shape[0]))
-                                d = sess.run(distance,\
-                                    feed_dict={\
-                                        left:left_val,right:right_val})
-                                d = d[0]
-                                if d < min_dist:
-                                    min_dist = d
-                                    min_label = g_l
-                            if min_label == label:
-                                correct_count += 1
-
-                    if total_count > 0:
-                        accur = correct_count * 1.0 / total_count
-                    else:
-                        accur = 0
-                    print("probe view:%s, gallery view:%s\
-                            , accuracy: %d/%d=%0.2f"\
-                                    % (probe_view
-                                        , gallery_view
-                                        , correct_count, total_count, accur)) 
+                    val_accu = get_accuracy(\
+                            sess, val_data,x1, x2,left,right,distance)
+                    test_accu = get_accuracy(\
+                            sess, test_data,x1, x2,left,right,distance)
+                    print('\t'.join(["type:"] + ["%03d" % x for x in range(0, 181, 18)] + ['avg']))
+                    val_str = "val\t"
+                    test_str = "test\t"
+                    val_accu_sum = 0.0
+                    test_accu_sum = 0.0
+                    for tmp in ["%03d" % x for x in range(0, 181, 18)]:
+                        val_str += "%0.2f\t" % val_accu[tmp]
+                        test_str += "%0.2f\t" % test_accu[tmp]
+                        val_accu_sum += val_accu[tmp]
+                        test_accu_sum += test_accu[tmp]
+                    val_str += "%0.2f\t" % (val_accu_sum / 11.0)
+                    test_str += "%0.2f\t" % (test_accu_sum / 11.0)
+                    print(val_str)
+                    print(test_str)
 if __name__ == '__main__':
     level = logging.INFO
     FORMAT = '%(asctime)-12s[%(levelname)s] %(message)s'
@@ -145,4 +176,4 @@ if __name__ == '__main__':
 
     logging.info("train data image count %s" % train_data.count())
     logging.info("validation data image count %s" % validation_data.count())
-    siamses_test(train_data, validation_data, test_data)
+    main(train_data, validation_data, test_data)

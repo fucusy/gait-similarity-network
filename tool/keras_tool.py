@@ -10,6 +10,7 @@ import numpy as np
 from scipy.misc import imread, imresize
 import logging
 from keras.utils.np_utils import to_categorical
+logger = logging.getLogger('keras_tool')
 
 
 def extract_info_from_path(path):
@@ -242,9 +243,9 @@ class SimiDataSet(object):
         self.pairs[1] = np.array(self.pairs[1])[permut]
 
         self.simi = np.array(self.simi)[permut]
-        print("before", self.simi, self.simi.shape)
+        logger.debug("before", self.simi, self.simi.shape)
         self.simi = to_categorical(self.simi, 2)
-        print("after", self.simi, self.simi.shape)
+        logger.debug("after", self.simi, self.simi.shape)
 
     def get_probes_img_paths(self, hid, probe_view):
         if hid not in self.label_to_imgs.keys():
@@ -266,7 +267,7 @@ class SimiDataSet(object):
         imgs = self.get_probes_img_paths(hid, view)
         return self.img_path_2_pic(imgs)
 
-    def get_gallery_paths(self, probe_view):
+    def get_gallery_paths(self, g_view=None):
         paths = []
         labels = []
         for i in range(len(self.img_paths)):
@@ -274,11 +275,12 @@ class SimiDataSet(object):
             img_l = self.img_labels[i]
             hid, cond, seq, view = extract_info_from_path(img_p)
             if cond == 'nm' and seq in ['01','02','03','04']:
-                paths.append(img_p)
-                labels.append(img_l)
+                if g_view is None or view == g_view:
+                    paths.append(img_p)
+                    labels.append(img_l)
         return paths, labels
 
-    def get_gallerys(self, view):
+    def get_gallerys(self, view=None):
         """
         get imgs of nm-01 nm-02 nm-03 nm-04 of this probe_view
         view: string, the view, such as '018'
@@ -326,7 +328,7 @@ class SimiDataSet(object):
 
         if need_label and self.simi is not None:
             target = self.simi[start:end]
-            print("target, ", target, target.shape)
+            logger.debug("target, ", target, target.shape)
             return feature_list, target, img_paths
         else:
             return feature_list, img_paths
