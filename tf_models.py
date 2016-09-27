@@ -15,7 +15,7 @@ def maxpool2d(x, k=2):
     return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1], padding='SAME')
 
 def contrastive_loss(y,d):
-    margin = 1
+    margin = 10000
     part1 = y * tf.square(d)
     part2 = (1-y) * tf.square(tf.maximum((margin - d),0))
     return tf.reduce_mean(part1 + part2)
@@ -172,7 +172,7 @@ def get_accuracy(sess, dataset, x1, x2, left, right, distance):
     return view_to_accu
 
 def main(data, val_data, test_data):
-    x1, x2, y, left, right, distance,loss,val_loss,optimizer=siamses_deep()
+    x1, x2, y, left, right, distance,loss,val_loss,optimizer=siamses_test()
     init = tf.initialize_all_variables()
     epoch = 2
     fragment_size = 512
@@ -204,7 +204,7 @@ def main(data, val_data, test_data):
                 batch_count += 1
                 batch_x, batch_y, _ = data.next_fragment(fragment_size, need_label=True)
                 loss_val, summary = sess.run([loss, merged_summary_op], feed_dict={x1: batch_x[0], x2:batch_x[1], y: batch_y})
-                print("epoch %02d, batch count, %05d: Minibatch loss=%0.2f" % (i, batch_count, loss_val))
+                logging.info("epoch %02d, batch count, %05d: Minibatch loss=%0.2f" % (i, batch_count, loss_val))
                 summary_writer.add_summary(summary, batch_count)
 
                 sess.run(optimizer, feed_dict={x1: batch_x[0], x2:batch_x[1], y: batch_y})
@@ -215,12 +215,12 @@ def main(data, val_data, test_data):
                                             fragment_size, need_label=True)
                     loss_val, summary = sess.run([val_loss, merged_summary_op], feed_dict={x1: batch_x[0], x2:batch_x[1], y: batch_y})
                     summary_writer.add_summary(summary, batch_count)
-                    print("epoch %02d, val loss=%0.2f" % (i, loss_val))
+                    logging.info("epoch %02d, val loss=%0.2f" % (i, loss_val))
                     val_accu = get_accuracy(\
                             sess, val_data,x1, x2,left,right,distance)
                     test_accu = get_accuracy(\
                             sess, test_data,x1, x2,left,right,distance)
-                    print('\t'.join(["type:"] + ["%03d" % x for x in range(0, 181, 18)] + ['avg']))
+                    logging.info('\t'.join(["type:"] + ["%03d" % x for x in range(0, 181, 18)] + ['avg']))
                     val_str = "val\t"
                     test_str = "test\t"
                     val_accu_sum = 0.0
@@ -232,8 +232,8 @@ def main(data, val_data, test_data):
                         test_accu_sum += test_accu[tmp]
                     val_str += "%0.2f\t" % (val_accu_sum / 11.0)
                     test_str += "%0.2f\t" % (test_accu_sum / 11.0)
-                    print(val_str)
-                    print(test_str)
+                    logging.info(val_str)
+                    logging.info(test_str)
 if __name__ == '__main__':
     level = logging.INFO
     FORMAT = '%(asctime)-12s[%(levelname)s] %(message)s'
