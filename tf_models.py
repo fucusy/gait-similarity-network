@@ -15,9 +15,9 @@ def maxpool2d(x, k=2):
     return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1], padding='SAME')
 
 def contrastive_loss(y,d):
-    q = 40000
+    margin = 1
     part1 = y * tf.square(d)
-    part2 = (1-y) * tf.square(tf.maximum((q - d),0))
+    part2 = (1-y) * tf.square(tf.maximum((margin - d),0))
     return tf.reduce_mean(part1 + part2)
 
 def siamses_test_share_part(x, weights, biases):
@@ -33,6 +33,75 @@ def siamses_test_share_part(x, weights, biases):
     out = tf.nn.dropout(out, dropout)
     return out
 
+def siamses_deep_share_part(x, weights, biases):
+    dropout = 0.5
+    conv1 = conv2d(x, weights['wc1'], biases['bc1'])
+    conv2 = conv2d(conv1, weights['wc2'], biases['bc2'])
+    conv3 = maxpool2d(conv2, k=2)
+
+    conv4 = conv2d(conv3, weights['wc3'], biases['bc3'])
+    conv5 = conv2d(conv4, weights['wc4'], biases['bc4'])
+    paddings = [[0, 0], [1, 0], [1, 0], [0, 0]]
+    conv5 = tf.pad(conv5, paddings,mode='CONSTANT')
+    conv6 = maxpool2d(conv5, k=2)
+
+    conv7 = conv2d(conv6, weights['wc5'], biases['bc5'])
+    paddings = [[0, 0], [1, 0], [0, 0], [0, 0]]
+    conv7 = tf.pad(conv7, paddings,mode='CONSTANT')
+    conv8 = maxpool2d(conv7, k=2)
+
+    conv9 = conv2d(conv8, weights['wc6'], biases['bc6'])
+    conv10 = maxpool2d(conv9, k=3)
+
+    fc1 = tf.reshape(conv10, [-1, weights['out'].get_shape().as_list()[0]])
+    fc1 = tf.nn.dropout(fc1, dropout)
+    out = tf.add(tf.matmul(fc1, weights['out']), biases['out'])
+    return out
+def siamses_deep():
+    """
+    return a list of var
+    """
+    x1 = tf.placeholder(tf.float32, [None, 210, 70, 1])
+    x2 = tf.placeholder(tf.float32, [None, 210, 70, 1])
+    y = tf.placeholder(tf.float32, [None, 2])
+    # Store layers weight & bias
+    weights = {
+        # 3x3 conv, 1 input, 16 outputs
+        'wc1': tf.Variable(tf.random_normal([3, 3, 1, 8])),
+
+        'wc2': tf.Variable(tf.random_normal([3, 3, 8, 16])),
+
+        'wc3': tf.Variable(tf.random_normal([3, 3, 16, 64])),
+
+        'wc4': tf.Variable(tf.random_normal([3, 3, 64, 64])),
+
+        'wc5': tf.Variable(tf.random_normal([3, 3, 64, 64])),
+
+        'wc6': tf.Variable(tf.random_normal([3, 3, 64, 64])),
+
+        # fully connected, 7*7*64 inputs, 1024 outputs
+        'out': tf.Variable(tf.random_normal([9 * 3 * 64, 512])),
+        # 1024 inputs, 10 outputs (class prediction)
+    }
+    biases = {
+        'bc1': tf.Variable(tf.random_normal([8])),
+        'bc2': tf.Variable(tf.random_normal([16])),
+        'bc3': tf.Variable(tf.random_normal([64])),
+        'bc4': tf.Variable(tf.random_normal([64])),
+        'bc5': tf.Variable(tf.random_normal([64])),
+        'bc6': tf.Variable(tf.random_normal([64])),
+        'out': tf.Variable(tf.random_normal([512])),
+    }
+
+    left = siamses_deep_share_part(x1, weights, biases)
+    right = siamses_deep_share_part(x2, weights, biases)
+    distance  = tf.sqrt(tf.reduce_mean(tf.pow(tf.sub(left, right),2),1,keep_dims=True))   
+    loss = contrastive_loss(y, distance) 
+    val_loss = contrastive_loss(y, distance) 
+    lr = 1e-3
+    optimizer = tf.train.AdamOptimizer(lr).minimize(loss)
+
+    return x1, x2, y, left, right, distance, loss, val_loss, optimizer
 def siamses_test():
     """
     return a list of var
@@ -77,9 +146,9 @@ def get_accuracy(sess, dataset, x1, x2, left, right, distance):
         for label in dataset.labels:
             p_imgs = dataset.get_probes(label, probe_view)
             p_vectors = sess.run(right, feed_dict={x2:p_imgs})
-            min_dist = float("inf")
-            min_label = "no_label"
             for p_v in p_vectors:
+                min_dist = float("inf")
+                min_label = "no_label"
                 total_count += 1
                 for i in range(len(g_imgs)):
                     g_v = g_vectors[i]
@@ -103,7 +172,7 @@ def get_accuracy(sess, dataset, x1, x2, left, right, distance):
     return view_to_accu
 
 def main(data, val_data, test_data):
-    x1, x2, y, left, right, distance,loss,val_loss,optimizer=siamses_test()
+    x1, x2, y, left, right, distance,loss,val_loss,optimizer=siamses_deep()
     init = tf.initialize_all_variables()
     epoch = 2
     fragment_size = 512
