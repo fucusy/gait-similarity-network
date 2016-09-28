@@ -232,9 +232,18 @@ def main(data, val_data, test_data):
                     nm_accu, cl_accu, bg_accu = get_accuracy(\
                             sess, test_data,x1, x2,left,right,distance)
 
-                    val_str = "val\t"
-                    test_str = "test\t"
+                    val_str = "nm val\t"
+                    val_cl_str = "cl val\t"
+                    val_bg_str = "bg val\t"
+
+                    nm_str = "nm\t"
+                    cl_str = "cl\t"
+                    bg_str = "bg\t"
+
                     val_accu_sum = 0.0
+                    val_cl_accu_sum = 0.0
+                    val_bg_accu_sum = 0.0
+
                     nm_accu_sum = 0.0
                     cl_accu_sum = 0.0
                     bg_accu_sum = 0.0
@@ -242,16 +251,25 @@ def main(data, val_data, test_data):
 
                     for tmp in ["%03d" % x for x in range(0, 181, 18)]:
                         val_str += "%0.2f\t" % val_accu[tmp]
+                        val_cl_str += "%0.2f\t" % val_cl_accu[tmp]
+                        val_bg_str += "%0.2f\t" % val_bg_accu[tmp]
+
                         nm_str += "%0.2f\t" % nm_accu[tmp]
                         cl_str += "%0.2f\t" % cl_accu[tmp]
                         bg_str += "%0.2f\t" % bg_accu[tmp]
 
                         val_accu_sum += val_accu[tmp]
+                        val_cl_accu_sum += val_cl_accu[tmp]
+                        val_bg_accu_sum += val_bg_accu[tmp]
+
                         nm_accu_sum += nm_accu[tmp]
                         cl_accu_sum += cl_accu[tmp]
                         bg_accu_sum += bg_accu[tmp]
 
                     val_str += "%0.2f\t" % (val_accu_sum / 11.0)
+                    val_cl_str += "%0.2f\t" % (val_cl_accu_sum / 11.0)
+                    val_bg_str += "%0.2f\t" % (val_bg_accu_sum / 11.0)
+
                     nm_str += "%0.2f\t" % (nm_accu_sum / 11.0)
                     cl_str += "%0.2f\t" % (cl_accu_sum / 11.0)
                     bg_str += "%0.2f\t" % (bg_accu_sum / 11.0)
@@ -259,7 +277,9 @@ def main(data, val_data, test_data):
                     logging.info('\t'.join(["type:"] + ["%03d" % x for x in range(0, 181, 18)] + ['avg']))
                     logging.info(val_str)
                     logging.info(nm_str)
+                    logging.info(val_cl_str)
                     logging.info(cl_str)
+                    logging.info(val_bg_str)
                     logging.info(bg_str)
 
 if __name__ == '__main__':
