@@ -140,37 +140,46 @@ def get_accuracy(sess, dataset, x1, x2, left, right, distance):
     g_imgs, g_labels = dataset.get_gallerys()
     g_vectors = []
     g_vectors = sess.run(right, feed_dict={x2:g_imgs})
-    view_to_accu = {}
-    for probe_view in ["%03d" % x for x in range(0, 181, 18)]:
-        correct_count = 0
-        total_count = 0
-        for label in dataset.labels:
-            p_imgs = dataset.get_probes(label, probe_view)
-            p_vectors = sess.run(right, feed_dict={x2:p_imgs})
-            for p_v in p_vectors:
-                min_dist = float("inf")
-                min_label = "no_label"
-                total_count += 1
-                for i in range(len(g_imgs)):
-                    g_v = g_vectors[i]
-                    g_l = g_labels[i]
-                    left_val = p_v.reshape((1, p_v.shape[0]))
-                    right_val = g_v.reshape((1, g_v.shape[0]))
-                    d = sess.run(distance,\
-                        feed_dict={\
-                            left:left_val,right:right_val})
-                    d = d[0]
-                    if d < min_dist:
-                        min_dist = d
-                        min_label = g_l
-                if min_label == label:
-                    correct_count += 1
-        if total_count > 0:
-            accur = correct_count * 1.0 / total_count
-        else:
-            accur = 0
-        view_to_accu[probe_view] = accur
-    return view_to_accu
+    nm_view_2_accu = [{}, {}, {}]
+    conds = ['nm', 'cl', 'bg']
+    for cond_i, cond in enumerate(conds):
+        for probe_view in ["%03d" % x for x in range(0, 181, 18)]:
+            correct_count = 0
+            total_count = 0
+            for label in dataset.labels:
+                p_imgs = dataset.get_probes(label, probe_view, cond)
+                p_vectors = sess.run(right, feed_dict={x2:p_imgs})
+                for p_v in p_vectors:
+                    min_dist = float("inf")
+                    min_label = "no_label"
+                    label_2_dists = {}
+                    total_count += 1
+                    for i in range(len(g_imgs)):
+                        g_v = g_vectors[i]
+                        g_l = g_labels[i]
+                        left_val = p_v.reshape((1, p_v.shape[0]))
+                        right_val = g_v.reshape((1, g_v.shape[0]))
+                        d = sess.run(distance,\
+                            feed_dict={\
+                                left:left_val,right:right_val})
+                        d = d[0]
+                        if g_l not in label_2_dists:
+                            label_2_dists[g_l] = [d,]
+                        else:
+                            label_2_dists[g_l].append(d)
+                    for l in label_2_dists.keys(): 
+                        mean_dist = np.mean(np.array(label_2_dists[l]))
+                        if mean_dist < min_dist:
+                            min_dist = mean_dist
+                            min_label = l
+                    if min_label == label:
+                        correct_count += 1
+            if total_count > 0:
+                accur = correct_count * 1.0 / total_count
+            else:
+                accur = 0
+            nm_view_2_accu[cond_i][probe_view] = accur
+    return nm_view_2_accu
 
 def main(data, val_data, test_data):
     x1, x2, y, left, right, distance,loss,val_loss,optimizer=siamses_test()
@@ -219,22 +228,39 @@ def main(data, val_data, test_data):
                     logging.info("epoch %02d, val loss=%0.2f" % (i, loss_val))
                     val_accu = get_accuracy(\
                             sess, val_data,x1, x2,left,right,distance)
-                    test_accu = get_accuracy(\
+                    nm_accu, cl_accu, bg_accu = get_accuracy(\
                             sess, test_data,x1, x2,left,right,distance)
-                    logging.info('\t'.join(["type:"] + ["%03d" % x for x in range(0, 181, 18)] + ['avg']))
+
                     val_str = "val\t"
                     test_str = "test\t"
                     val_accu_sum = 0.0
-                    test_accu_sum = 0.0
+                    nm_accu_sum = 0.0
+                    cl_accu_sum = 0.0
+                    bg_accu_sum = 0.0
+
+
                     for tmp in ["%03d" % x for x in range(0, 181, 18)]:
                         val_str += "%0.2f\t" % val_accu[tmp]
-                        test_str += "%0.2f\t" % test_accu[tmp]
+                        nm_str += "%0.2f\t" % nm_accu[tmp]
+                        cl_str += "%0.2f\t" % cl_accu[tmp]
+                        bg_str += "%0.2f\t" % bg_accu[tmp]
+
                         val_accu_sum += val_accu[tmp]
-                        test_accu_sum += test_accu[tmp]
+                        nm_accu_sum += nm_accu[tmp]
+                        cl_accu_sum += cl_accu[tmp]
+                        bg_accu_sum += bg_accu[tmp]
+
                     val_str += "%0.2f\t" % (val_accu_sum / 11.0)
-                    test_str += "%0.2f\t" % (test_accu_sum / 11.0)
+                    nm_str += "%0.2f\t" % (nm_accu_sum / 11.0)
+                    cl_str += "%0.2f\t" % (cl_accu_sum / 11.0)
+                    bg_str += "%0.2f\t" % (bg_accu_sum / 11.0)
+
+                    logging.info('\t'.join(["type:"] + ["%03d" % x for x in range(0, 181, 18)] + ['avg']))
                     logging.info(val_str)
-                    logging.info(test_str)
+                    logging.info(nm_str)
+                    logging.info(cl_str)
+                    logging.info(bg_str)
+
 if __name__ == '__main__':
     level = logging.INFO
     FORMAT = '%(asctime)-12s[%(levelname)s] %(message)s'

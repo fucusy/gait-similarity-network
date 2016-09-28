@@ -55,7 +55,7 @@ def load_train_img_path_list_and_label(train_path):
         sub_folder = '%03d' % x
         path = "%s/%s" % (train_path, sub_folder)
         result = load_img_path_list(path)
-        label_list += [x-1] * len(result)
+        label_list += [sub_folder] * len(result)
         result_list += list(result)
     return np.array(result_list), np.array(label_list)
 
@@ -145,7 +145,7 @@ def load_train_validation_data_set(path):
     val_ids = ["%03d" % x for x in range(51, 75)]
     test_ids = ["%03d" % x for x in range(75, 124)]
 
-    condition = ["nm"]
+    condition = ["nm", "cl", "bg"]
 
     for i in range(len(img_list)):
         hid, cond, seq, view = extract_info_from_path(img_list[i])
@@ -183,12 +183,6 @@ class SimiDataSet(object):
         self.labels = []
         self.label_to_imgs = {}
         self.pre_func = img_preprocess
-
-        # change int label to str label
-        for i in range(len(img_labels)):
-            label = "%03d" % img_labels[i]
-            img_labels[i] = label
-
         labels = set()
         for i in range(len(img_labels)):
             label = img_labels[i]
@@ -203,7 +197,14 @@ class SimiDataSet(object):
         for l in self.labels:
             count_l = len(self.label_to_imgs[l])
             for i in range(count_l):
+                hid, cond, seq, view = extract_info_from_path(self.label_to_imgs[l][i])
+                if cond != 'nm':
+                    continue
                 for j in range(i, count_l):
+                    hid, cond, seq, view = extract_info_from_path(self.label_to_imgs[l][j])
+                    if cond != 'nm':
+                        continue
+
                     self.pairs[0].append(self.label_to_imgs[l][i])
                     self.pairs[1].append(self.label_to_imgs[l][j])
                     self.simi.append(1)
@@ -219,7 +220,13 @@ class SimiDataSet(object):
             count_i = len(self.label_to_imgs[l_i])
             count_j = len(self.label_to_imgs[l_j])
             for index_i in range(count_i):
+                hid, cond, seq, view = extract_info_from_path(self.label_to_imgs[l_i][index_i])
+                if cond != 'nm':
+                    continue
                 for index_j in range(count_j):
+                    hid, cond, seq, view = extract_info_from_path(self.label_to_imgs[l_j][index_j])
+                    if cond != 'nm':
+                        continue
                     self.pairs[0].append(self.label_to_imgs[l_i][index_i])
                     self.pairs[1].append(self.label_to_imgs[l_j][index_j])
                     self.simi.append(0)
@@ -235,25 +242,35 @@ class SimiDataSet(object):
         self.simi = to_categorical(self.simi, 2)
         logger.debug("after", self.simi, self.simi.shape)
 
-    def get_probes_img_paths(self, hid, probe_view):
+    def get_probes_img_paths(self, hid, probe_view, probe_cond='nm'):
         if hid not in self.label_to_imgs.keys():
             return []
         imgs = []
         for img_path in self.label_to_imgs[hid]:
             hid, cond, seq, view = extract_info_from_path(img_path)
-            if view == probe_view and cond == 'nm' and seq in ['05', '06']:
+            if probe_cond == 'nm':
+                probe_seq = ['05', '06']
+            else:
+                probe_seq = ['01', '02']
+            if view == probe_view and cond == probe_cond and seq in probe_seq:
                 imgs.append(img_path)
         return imgs
 
-    def get_probes(self, hid, view):
+    def get_probes(self, hid, view, cond='nm'):
         """
         get imgs of nm-05 nm-06 of this hid and this probe_view
         hid: string, the human id, such as '001'
         probe_view: string, the view, such as '018'
         return a numpy of imgs data
         """
-        imgs = self.get_probes_img_paths(hid, view)
+        imgs = self.get_probes_img_paths(hid, view, cond)
         return self.img_path_2_pic(imgs)
+
+    def get_cloth_probes(self, hid, view):
+        return self.get_probes(hid, view, cond='cl')
+
+    def get_bag_probes(self, hid, view):
+        return self.get_probes(hid, view, cond='bg')
 
     def get_gallery_paths(self, g_view=None):
         paths = []
@@ -351,11 +368,12 @@ if __name__ == '__main__':
         print(img_label)
         view = "018"
         label = train_data.labels[0]
-        imgs = train_data.get_probes(label, view)
-        print("imgs of view:%s label:%s" % (view, label))
+        imgs = train_data.get_probes(label, view, 'nm')
+        print("probe nm imgs of view:%s label:%s" % (view, label))
         print(imgs)
-        imgs, labels = train_data.get_gallerys(view)
-        print("gallery imgs and labels of view:%s" % (view))
+
+        imgs = train_data.get_probes(label, view, 'cl')
+        print("probe cl imgs of view:%s label:%s" % (view, label))
         print(imgs)
-        print(labels)
+
         break
