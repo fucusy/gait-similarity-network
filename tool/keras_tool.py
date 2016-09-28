@@ -4,7 +4,6 @@ import sys
 sys.path.append('../')
 
 import config
-from keras.models import model_from_yaml
 import os
 import numpy as np
 from scipy.misc import imread, imresize
@@ -37,17 +36,6 @@ def save_model(model, weight_path, structure_path=''):
     open(structure_path, 'w').write(model_string)
     model.save_weights(weight_path, overwrite=True)
 
-def load_model(weight_path, structure_path=''):
-    """
-    load the keras model, from your saved model
-
-    :return: uncompile model
-    """
-    if structure_path == '':
-        structure_path = weight_path + ".yaml"
-    model = model_from_yaml(open(structure_path).read())
-    model.load_weights(weight_path)
-    return model
 
 def load_img_path_list(path):
     """
