@@ -4,6 +4,7 @@ from tool.keras_tool import normalization_grey_image
 import config
 from tool.keras_tool import load_data
 import os
+import numpy as np
 
 # Create some wrappers for simplicity
 def conv2d(x, W, b, strides=1):
@@ -226,7 +227,7 @@ def main(data, val_data, test_data):
                     loss_val, summary = sess.run([val_loss, merged_summary_op], feed_dict={x1: batch_x[0], x2:batch_x[1], y: batch_y})
                     summary_writer.add_summary(summary, batch_count)
                     logging.info("epoch %02d, val loss=%0.2f" % (i, loss_val))
-                    val_accu = get_accuracy(\
+                    val_accu, val_cl_accu, val_bg_accu = get_accuracy(\
                             sess, val_data,x1, x2,left,right,distance)
                     nm_accu, cl_accu, bg_accu = get_accuracy(\
                             sess, test_data,x1, x2,left,right,distance)
