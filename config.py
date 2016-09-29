@@ -41,19 +41,15 @@ class data:
     test_seq = ["01", "02"] 
     test_angle = "054"
 
-    train_img_dirs = ["/home/chenqiang/data/gait-simple-cnn-data/%s-%s-%d-for-train-%s-%s-%d-for-test_extract_210_70" % (train_type, train_angle, len(train_seq), test_type, test_angle, len(test_seq))]
+    train_img_dirs = ["/home/chenqiang/data/CASIA_gait_data_GEI"]
 
 class CNN:
     #
     keras_train_weight = "%s/CNN/vgg_try_karea/cache/model_weights_2_vgg_16_2x20.h5" % Project.project_path
-
-
     # keras structure files
     keras_structure_files = ""
 
     fine_tuning_vgg_weight_file_path = ""
-
-    model_name = 'cas_mt_model'
 
     '''/path/to/json/vgg_self_exp1_keras_arch.json'''
     model_arch_file_name = '/home/liuzheng/competition/kaggle/distractedDrivers/vgg_self_exp1_keras_arch.json'
@@ -77,10 +73,12 @@ class CNN:
 
     feature_save_path = '%s/cache' % Project.project_path
 
-    load_image_to_memory_every_time = 10000
+    load_image_to_memory_every_time = 8192
 
-    load_image_to_memory_every_time_when_test = 10000
+    load_image_to_memory_every_time_when_test = 8192
 
     val_every = 500000
 
-    lr = 1e-4
+    lr = 1e-3
+    margin = 100
+    model_name = 'siamses_test'

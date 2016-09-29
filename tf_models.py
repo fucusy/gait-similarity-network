@@ -16,7 +16,7 @@ def maxpool2d(x, k=2):
     return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1], padding='SAME')
 
 def contrastive_loss(y,d):
-    margin = 100
+    margin = config.CNN.margin
     logging.info("set margin to %d" % margin)
     part1 = y * tf.square(d)
     part2 = (1-y) * tf.square(tf.maximum((margin - d),0))
@@ -59,7 +59,7 @@ def siamses_deep_share_part(x, weights, biases):
     fc1 = tf.nn.dropout(fc1, dropout)
     out = tf.add(tf.matmul(fc1, weights['out']), biases['out'])
     return out
-def siamses_deep():
+def siamses_deep(lr = 1e-3):
     """
     return a list of var
     """
@@ -100,11 +100,42 @@ def siamses_deep():
     distance  = tf.sqrt(tf.reduce_mean(tf.pow(tf.sub(left, right),2),1,keep_dims=True))   
     loss = contrastive_loss(y, distance) 
     val_loss = contrastive_loss(y, distance) 
-    lr = 1e-3
     optimizer = tf.train.AdamOptimizer(lr).minimize(loss)
 
     return x1, x2, y, left, right, distance, loss, val_loss, optimizer
-def siamses_test():
+
+def siamses_test_advance(lr=1e-3)
+    """
+    return a list of var
+    """
+    x1 = tf.placeholder(tf.float32, [None, 210, 70, 1])
+    x2 = tf.placeholder(tf.float32, [None, 210, 70, 1])
+    y = tf.placeholder(tf.float32, [None, 2])
+    # Store layers weight & bias
+    weights = {
+        # 5x5 conv, 1 input, 32 outputs
+        'wc1': tf.Variable(tf.random_normal([5, 5, 1, 32])),
+        # 5x5 conv, 32 inputs, 64 outputs
+        'wc2': tf.Variable(tf.random_normal([5, 5, 32, 64])),
+        # fully connected, 7*7*64 inputs, 1024 outputs
+        'out': tf.Variable(tf.random_normal([21*7*64, 1024])),
+        # 1024 inputs, 10 outputs (class prediction)
+    }
+    biases = {
+        'bc1': tf.Variable(tf.random_normal([32])),
+        'bc2': tf.Variable(tf.random_normal([64])),
+        'out': tf.Variable(tf.random_normal([1024])),
+    }
+    left = siamses_test_share_part(x1, weights, biases)
+    right = siamses_test_share_part(x2, weights, biases)
+    distance  = tf.sqrt(tf.reduce_mean(tf.pow(tf.sub(left, right),2),1,keep_dims=True))   
+    loss = contrastive_loss(y, distance) 
+    val_loss = contrastive_loss(y, distance) 
+    optimizer = tf.train.AdamOptimizer(lr).minimize(loss)
+
+    return x1, x2, y, left, right, distance, loss, val_loss, optimizer
+
+def siamses_test(lr=1e-3):
     """
     return a list of var
     """
@@ -131,7 +162,6 @@ def siamses_test():
     distance  = tf.sqrt(tf.reduce_mean(tf.pow(tf.sub(left, right),2),1,keep_dims=True))   
     loss = contrastive_loss(y, distance) 
     val_loss = contrastive_loss(y, distance) 
-    lr = 1e-3
     optimizer = tf.train.AdamOptimizer(lr).minimize(loss)
 
     return x1, x2, y, left, right, distance, loss, val_loss, optimizer
