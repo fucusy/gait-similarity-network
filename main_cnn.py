@@ -16,8 +16,10 @@ def main(data, val_data, test_data):
     epoch = 2
     fragment_size = 512
     batch_count = 0
-    val_every_batch = 100
-    
+    val_every_batch = config.CNN.val_every
+
+    logging.info("lr:%s, margin: %s, val_every:%s" % (config.CNN.lr, config.CNN.margin, config.CNN.val_every))
+
     # visualization
     # op to write logs to path like 
     tmp = 0

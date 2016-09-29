@@ -104,7 +104,7 @@ def siamses_deep(lr = 1e-3):
 
     return x1, x2, y, left, right, distance, loss, val_loss, optimizer
 
-def siamses_test_advance(lr=1e-3)
+def siamses_test_advance(lr=1e-3):
     """
     return a list of var
     """

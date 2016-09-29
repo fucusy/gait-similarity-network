@@ -77,8 +77,8 @@ class CNN:
 
     load_image_to_memory_every_time_when_test = 8192
 
-    val_every = 500000
+    val_every = 50
 
     lr = 1e-3
-    margin = 100
+    margin = 50
     model_name = 'siamses_test'
