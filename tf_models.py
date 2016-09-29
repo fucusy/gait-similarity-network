@@ -16,7 +16,7 @@ def maxpool2d(x, k=2):
     return tf.nn.max_pool(x, ksize=[1, k, k, 1], strides=[1, k, k, 1], padding='SAME')
 
 def contrastive_loss(y,d):
-    margin = 200
+    margin = 100
     logging.info("set margin to %d" % margin)
     part1 = y * tf.square(d)
     part2 = (1-y) * tf.square(tf.maximum((margin - d),0))
@@ -142,7 +142,8 @@ def get_accuracy(sess, dataset, x1, x2, left, right, distance):
     g_vectors = []
     g_vectors = sess.run(right, feed_dict={x2:g_imgs})
     nm_view_2_accu = [{}, {}, {}]
-    conds = ['nm', 'cl', 'bg']
+    #conds = ['nm', 'cl', 'bg']
+    conds = ['nm']
     for cond_i, cond in enumerate(conds):
         for probe_view in ["%03d" % x for x in range(0, 181, 18)]:
             correct_count = 0
@@ -151,8 +152,6 @@ def get_accuracy(sess, dataset, x1, x2, left, right, distance):
                 p_imgs = dataset.get_probes(label, probe_view, cond)
                 p_vectors = sess.run(right, feed_dict={x2:p_imgs})
                 for p_v in p_vectors:
-                    min_dist = float("inf")
-                    min_label = "no_label"
                     label_2_dists = {}
                     total_count += 1
                     for i in range(len(g_imgs)):
@@ -169,11 +168,28 @@ def get_accuracy(sess, dataset, x1, x2, left, right, distance):
                         else:
                             label_2_dists[g_l].append(d)
                     for l in label_2_dists.keys(): 
-                        mean_dist = np.mean(np.array(label_2_dists[l]))
-                        if mean_dist < min_dist:
-                            min_dist = mean_dist
-                            min_label = l
-                    if min_label == label:
+                        label_2_dists[l] = sorted(label_2_dists[l])[:4]
+                    label_nearest_count = {}
+                    for tmp in range(4):
+                        min_dist = float("inf")
+                        min_label = "no_label"
+                        for l in label_2_dists.keys():
+                            if label_2_dists[l][0] < min_dist:
+                                min_dist = label_2_dists[l][0]
+                                min_label = l
+                        del label_2_dists[l][0]
+                        if min_label not in label_nearest_count:
+                            label_nearest_count[min_label] = 0
+                        else:
+                            label_nearest_count[min_label] += 1
+                    max_count = 0
+                    max_label = "no_label"
+                    for l in label_nearest_count.keys():
+                        if label_nearest_count[l] > max_count:
+                            max_count = label_nearest_count[l]
+                            max_label = l
+
+                    if max_label == label:
                         correct_count += 1
             if total_count > 0:
                 accur = correct_count * 1.0 / total_count
@@ -232,55 +248,55 @@ def main(data, val_data, test_data):
                     nm_accu, cl_accu, bg_accu = get_accuracy(\
                             sess, test_data,x1, x2,left,right,distance)
 
-                    val_str = "nm val\t"
-                    val_cl_str = "cl val\t"
-                    val_bg_str = "bg val\t"
+                    val_str = "nm  val\t"
+                    #val_cl_str = "cl  val\t"
+                    #val_bg_str = "bg  val\t"
 
-                    nm_str = "nm\t"
-                    cl_str = "cl\t"
-                    bg_str = "bg\t"
+                    nm_str = "nm test\t"
+                    #cl_str = "cl test\t"
+                    #bg_str = "bg test\t"
 
                     val_accu_sum = 0.0
-                    val_cl_accu_sum = 0.0
-                    val_bg_accu_sum = 0.0
+                    #val_cl_accu_sum = 0.0
+                    #val_bg_accu_sum = 0.0
 
                     nm_accu_sum = 0.0
-                    cl_accu_sum = 0.0
-                    bg_accu_sum = 0.0
+                    #cl_accu_sum = 0.0
+                    #bg_accu_sum = 0.0
 
 
                     for tmp in ["%03d" % x for x in range(0, 181, 18)]:
                         val_str += "%0.2f\t" % val_accu[tmp]
-                        val_cl_str += "%0.2f\t" % val_cl_accu[tmp]
-                        val_bg_str += "%0.2f\t" % val_bg_accu[tmp]
+                        #val_cl_str += "%0.2f\t" % val_cl_accu[tmp]
+                        #val_bg_str += "%0.2f\t" % val_bg_accu[tmp]
 
                         nm_str += "%0.2f\t" % nm_accu[tmp]
-                        cl_str += "%0.2f\t" % cl_accu[tmp]
-                        bg_str += "%0.2f\t" % bg_accu[tmp]
+                        #cl_str += "%0.2f\t" % cl_accu[tmp]
+                        #bg_str += "%0.2f\t" % bg_accu[tmp]
 
                         val_accu_sum += val_accu[tmp]
-                        val_cl_accu_sum += val_cl_accu[tmp]
-                        val_bg_accu_sum += val_bg_accu[tmp]
+                        #val_cl_accu_sum += val_cl_accu[tmp]
+                        #val_bg_accu_sum += val_bg_accu[tmp]
 
                         nm_accu_sum += nm_accu[tmp]
-                        cl_accu_sum += cl_accu[tmp]
-                        bg_accu_sum += bg_accu[tmp]
+                        #cl_accu_sum += cl_accu[tmp]
+                        #bg_accu_sum += bg_accu[tmp]
 
                     val_str += "%0.2f\t" % (val_accu_sum / 11.0)
-                    val_cl_str += "%0.2f\t" % (val_cl_accu_sum / 11.0)
-                    val_bg_str += "%0.2f\t" % (val_bg_accu_sum / 11.0)
+                    #val_cl_str += "%0.2f\t" % (val_cl_accu_sum / 11.0)
+                    #val_bg_str += "%0.2f\t" % (val_bg_accu_sum / 11.0)
 
                     nm_str += "%0.2f\t" % (nm_accu_sum / 11.0)
-                    cl_str += "%0.2f\t" % (cl_accu_sum / 11.0)
-                    bg_str += "%0.2f\t" % (bg_accu_sum / 11.0)
+                    #cl_str += "%0.2f\t" % (cl_accu_sum / 11.0)
+                    #bg_str += "%0.2f\t" % (bg_accu_sum / 11.0)
 
-                    logging.info('\t'.join(["type:"] + ["%03d" % x for x in range(0, 181, 18)] + ['avg']))
+                    logging.info('\t'.join(["type :"] + ["%03d" % x for x in range(0, 181, 18)] + ['avg']))
                     logging.info(val_str)
                     logging.info(nm_str)
-                    logging.info(val_cl_str)
-                    logging.info(cl_str)
-                    logging.info(val_bg_str)
-                    logging.info(bg_str)
+                    #logging.info(val_cl_str)
+                    #logging.info(cl_str)
+                    #logging.info(val_bg_str)
+                    #logging.info(bg_str)
 
 if __name__ == '__main__':
     level = logging.INFO
