@@ -12,3 +12,6 @@ cache
 # ignore log
 nohup.out
 */__pycache__/
+
+# ignore config.py
+config.py
