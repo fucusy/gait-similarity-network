@@ -118,13 +118,13 @@ def siamses_test_advance(lr=1e-3):
         # 5x5 conv, 32 inputs, 64 outputs
         'wc2': tf.Variable(tf.random_normal([5, 5, 32, 64])),
         # fully connected, 7*7*64 inputs, 1024 outputs
-        'out': tf.Variable(tf.random_normal([21*7*64, 1024])),
+        'out': tf.Variable(tf.random_normal([21*7*64, 2048])),
         # 1024 inputs, 10 outputs (class prediction)
     }
     biases = {
         'bc1': tf.Variable(tf.random_normal([32])),
         'bc2': tf.Variable(tf.random_normal([64])),
-        'out': tf.Variable(tf.random_normal([1024])),
+        'out': tf.Variable(tf.random_normal([2048])),
     }
     left = siamses_test_share_part(x1, weights, biases)
     right = siamses_test_share_part(x2, weights, biases)
