@@ -17,7 +17,6 @@ def maxpool2d(x, k=2):
 
 def contrastive_loss(y,d):
     margin = config.CNN.margin
-    logging.info("set margin to %d" % margin)
     part1 = y * tf.square(d)
     part2 = (1-y) * tf.square(tf.maximum((margin - d),0))
     return tf.reduce_mean(part1 + part2)
@@ -174,6 +173,7 @@ def get_accuracy(sess, dataset, x1, x2, left, right, distance):
     nm_view_2_accu = [{}, {}, {}]
     #conds = ['nm', 'cl', 'bg']
     conds = ['nm']
+    K = 4
     for cond_i, cond in enumerate(conds):
         for probe_view in ["%03d" % x for x in range(0, 181, 18)]:
             correct_count = 0
@@ -198,16 +198,17 @@ def get_accuracy(sess, dataset, x1, x2, left, right, distance):
                         else:
                             label_2_dists[g_l].append(d)
                     for l in label_2_dists.keys(): 
-                        label_2_dists[l] = sorted(label_2_dists[l])[:4]
+                        label_2_dists[l] = sorted(label_2_dists[l])[:K]
                     label_nearest_count = {}
-                    for tmp in range(4):
+                    for tmp in range(K):
                         min_dist = float("inf")
                         min_label = "no_label"
                         for l in label_2_dists.keys():
-                            if label_2_dists[l][0] < min_dist:
+                            if len(label_2_dists[l]) > 0 and\
+                                    label_2_dists[l][0] < min_dist:
                                 min_dist = label_2_dists[l][0]
                                 min_label = l
-                        del label_2_dists[l][0]
+                        del label_2_dists[min_label][0]
                         if min_label not in label_nearest_count:
                             label_nearest_count[min_label] = 0
                         else:
