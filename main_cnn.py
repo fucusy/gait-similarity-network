@@ -18,9 +18,10 @@ def main(data, val_data, test_data):
     batch_count = 0
     val_every_batch = config.CNN.val_every
 
-    logging.info("model name:%s,lr:%s, margin: %s, val_every:%s" \
+    logging.info("model name:%s,lr:%s, margin: %s, val_every:%s, K: %d" \
             % (config.CNN.model_name,config.CNN.lr\
-                , config.CNN.margin, config.CNN.val_every))
+                , config.CNN.margin, config.CNN.val_every\
+                , config.CNN.K))
 
     # visualization
     # op to write logs to path like 

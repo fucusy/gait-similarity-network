@@ -173,7 +173,7 @@ def get_accuracy(sess, dataset, x1, x2, left, right, distance):
     nm_view_2_accu = [{}, {}, {}]
     #conds = ['nm', 'cl', 'bg']
     conds = ['nm']
-    K = 4
+    K = config.CNN.K
     for cond_i, cond in enumerate(conds):
         for probe_view in ["%03d" % x for x in range(0, 181, 18)]:
             correct_count = 0
