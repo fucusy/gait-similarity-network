@@ -5,7 +5,28 @@ import config
 from tool.keras_tool import load_data
 import os
 import numpy as np
+import collections
 
+def output_res(accu_dic):
+    """
+    params:ordered dic, accu_dic: "nm val" => {"000":0.91, "018":0.11, ...}
+    """
+    output = ''
+    output += '\n'
+    output += '\t'.join(["type :"] + ["%03d" % x for x in range(0, 181, 18)] + ['avg'])
+    for key in accu_dic.keys():
+        key_str = "%s:\t" % key
+        accu_sum = 0.0
+        for tmp in ["%03d" % x for x in range(0, 181, 18)]:
+            if tmp in accu_dic[key].keys():
+                key_str += "%0.2f\t" % accu_dic[key][tmp]
+                accu_sum += accu_dic[key][tmp]
+            else:
+                key_str += "null\t"
+        key_str += '%0.2f\t' % (accu_sum / 11.0)
+        output += '\n%s' % key_str
+    return output
+    
 # Create some wrappers for simplicity
 def conv2d(x, W, b, strides=1):
     x = tf.nn.conv2d(x, W, strides=[1, strides, strides, 1], padding='SAME')
@@ -180,6 +201,9 @@ def get_accuracy(sess, dataset, x1, x2, left, right, distance):
             total_count = 0
             for label in dataset.labels:
                 p_imgs = dataset.get_probes(label, probe_view, cond)
+                if len(p_imgs) == 0:
+                    logging.warning("no probes of at label:%s, view:%s, cond:%s" % (label, probe_view, cond))
+                    continue
                 p_vectors = sess.run(right, feed_dict={x2:p_imgs})
                 for p_v in p_vectors:
                     label_2_dists = {}
@@ -330,14 +354,13 @@ def main(data, val_data, test_data):
                     #logging.info(bg_str)
 
 if __name__ == '__main__':
+    train_nm_accu = {"000": 0.91, "180": 0}
+    test_nm_accu = {"054": 0.99, "180": 100}
+    d = collections.OrderedDict()
+    d["tra nm"] = train_nm_accu
+    d["tes nm"] =  test_nm_accu
     level = logging.INFO
     FORMAT = '%(asctime)-12s[%(levelname)s] %(message)s'
     logging.basicConfig(level=level, format=FORMAT, datefmt='%Y-%m-%d %H:%M:%S')
-
-    train_img_dirs = config.data.train_img_dirs 
-    print train_img_dirs 
-    train_data, validation_data, test_data = load_data(train_img_dirs)
-
-    logging.info("train data image count %s" % train_data.count())
-    logging.info("validation data image count %s" % validation_data.count())
-    main(train_data, validation_data, test_data)
+    output = output_res(d)
+    logging.info(output)
