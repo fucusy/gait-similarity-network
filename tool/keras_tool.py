@@ -3,6 +3,7 @@ __author__ = 'fucus'
 import sys
 sys.path.append('../')
 
+import random
 import config
 import os
 import numpy as np
@@ -168,7 +169,7 @@ def load_train_validation_data_set(path):
     return train_data, val_data, test_data
 
 class SimiDataSet(object):
-    def __init__(self, img_paths, img_labels):
+    def __init__(self, img_paths, img_labels, neg_pick='random'):
         """
         :param img_paths:
         :param img_labels:
@@ -213,17 +214,25 @@ class SimiDataSet(object):
                     self.pairs[1].append(self.label_to_imgs[l][i])
                     self.simi.append(1)
 
+
+        random_seed = 2016
+        random.seed(random_seed)
         for i in range(len(self.labels)):
-            j = (i+1) % len(self.labels)
             l_i = self.labels[i]
-            l_j = self.labels[j]
             count_i = len(self.label_to_imgs[l_i])
-            count_j = len(self.label_to_imgs[l_j])
             for index_i in range(count_i):
                 hid, cond, seq, view = extract_info_from_path(self.label_to_imgs[l_i][index_i])
                 if cond != 'nm':
                     continue
-                for index_j in range(count_j):
+                for index_i in range(count_i):
+                    # randomly pick dis-similar image
+                    random_j = random.randint(0, len(self.labels)-2)
+                    if random_j >= i:
+                        random_j += 1
+                    j = random_j
+                    l_j = self.labels[j]
+                    count_j = len(self.label_to_imgs[l_j])
+                    index_j = random.randint(0, count_j - 1)
                     hid, cond, seq, view = extract_info_from_path(self.label_to_imgs[l_j][index_j])
                     if cond != 'nm':
                         continue
@@ -231,8 +240,8 @@ class SimiDataSet(object):
                     self.pairs[1].append(self.label_to_imgs[l_j][index_j])
                     self.simi.append(0)
 
-        random = 2016
-        np.random.seed(random)
+        random_seed = 2016
+        np.random.seed(random_seed)
         permut = np.random.permutation(len(self.simi))
         self.pairs[0] = np.array(self.pairs[0])[permut]
         self.pairs[1] = np.array(self.pairs[1])[permut]
