@@ -224,7 +224,7 @@ class SimiDataSet(object):
                 hid, cond, seq, view = extract_info_from_path(self.label_to_imgs[l_i][index_i])
                 if cond != 'nm':
                     continue
-                for index_i in range(count_i):
+                for tmp in range(count_i):
                     # randomly pick dis-similar image
                     random_j = random.randint(0, len(self.labels)-2)
                     if random_j >= i:
