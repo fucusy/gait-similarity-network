@@ -77,8 +77,9 @@ class CNN:
 
     load_image_to_memory_every_time_when_test = 8192
 
-    val_every = 50
-
+    val_every = 50 # [10, 20, 40]
     lr = 1e-3
-    margin = 50
-    model_name = 'siamses_test'
+    margin = 10 # [1, 10, 100, 1000]
+    model_name = 'siamses_vgg_like'
+    K = 4
+    output_dim = 512 # [512, 1024, 2048, 4096]
