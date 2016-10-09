@@ -214,7 +214,6 @@ class SimiDataSet(object):
                     self.pairs[1].append(self.label_to_imgs[l][i])
                     self.simi.append(1)
 
-
         random_seed = 2016
         random.seed(random_seed)
         for i in range(len(self.labels)):
@@ -240,6 +239,14 @@ class SimiDataSet(object):
                     self.pairs[1].append(self.label_to_imgs[l_j][index_j])
                     self.simi.append(0)
 
+        count_0 = 0
+        count_1 = 0
+        for s in self.simi:
+            if s == 0:
+                count_0 += 1
+            elif s == 1:
+                count_1 += 1
+        logging.info("non similar pair count:%d, similar pair count:%d" % (count_0, count_1))
         random_seed = 2016
         np.random.seed(random_seed)
         permut = np.random.permutation(len(self.simi))
@@ -247,10 +254,10 @@ class SimiDataSet(object):
         self.pairs[1] = np.array(self.pairs[1])[permut]
 
         self.simi = np.array(self.simi)[permut]
-        logger.debug("before", self.simi, self.simi.shape)
-        self.simi = to_categorical(self.simi, 2)
-        logger.debug("after", self.simi, self.simi.shape)
-
+        logger.debug("before %s" % str(self.simi.shape))
+        self.simi = self.simi.reshape((-1,1))
+        #self.simi = to_categorical(self.simi, 2)
+        logger.debug("before %s" % str(self.simi.shape))
     def get_probes_img_paths(self, hid, probe_view, probe_cond='nm'):
         if hid not in self.label_to_imgs.keys():
             return []
@@ -342,7 +349,7 @@ class SimiDataSet(object):
 
         if need_label and self.simi is not None:
             target = self.simi[start:end]
-            logger.debug("target, ", target, target.shape)
+            logger.debug("target, %s" % str(target.shape))
             return feature_list, target, img_paths
         else:
             return feature_list, img_paths
