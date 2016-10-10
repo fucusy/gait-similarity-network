@@ -139,31 +139,48 @@ def extract_human(img):
     img = shift_down(img, down_blank)
     return img
 
-def center_person(img, size):
-    """
 
+def center_person(img, size, method="gravity"):
+    """
     :param img: grey image, numpy.array datatype
     :param size: tuple, for example(120, 160), first number for height, second for width
+    :param method: string, can be 'sample', or 'gravity'
     :return:
     """
 
-    highest_index = 0
-    highest = 0
+    best_index = 0
     origin_height, origin_width = img.shape
 
-    for i in range(origin_width):
-        data = img[:, i]
-        for j, val in enumerate(data):
 
-            # encounter body
-            if val > 0:
-                now_height = origin_height - j
-                if now_height > highest:
-                    highest = now_height
-                    highest_index = i
-                break
+    if method == "simple":
+        highest = 0
+        for i in range(origin_width):
+            data = img[:, i]
+            for j, val in enumerate(data):
 
-    left_part_column_count = highest_index
+                # encounter body
+                if val > 0:
+                    now_height = origin_height - j
+                    if now_height > highest:
+                        highest = now_height
+                        best_index = i
+                    break
+    else:
+        pixel_count = []
+        for i in range(origin_width):
+            pixel_count.append(np.count_nonzero(img[:, i]))
+        count_all = sum(pixel_count)
+        pixel_percent = [count * 1.0 / count_all for count in pixel_count]
+        count_percent_sum = 0
+        min_theta = 1
+        for i, val in enumerate(pixel_percent):
+            tmp = abs(0.5 - count_percent_sum)
+            if tmp < min_theta:
+                min_theta = tmp
+                best_index = i
+            count_percent_sum += val
+
+    left_part_column_count = best_index
     right_part_column_count = origin_width - left_part_column_count - 1
 
     if left_part_column_count == right_part_column_count:
@@ -216,7 +233,7 @@ def img_path_to_GEI(img_path):
 
 if __name__ == '__main__':
     origin_dir = "/home/chenqiang/data/CASIA_full_gait_data/DatasetB/silhouettes"
-    GEI_dir = "/home/chenqiang/data/CASIA_gait_data_GEI"
+    GEI_dir = "/home/chenqiang/data/CASIA_gait_data_GEI_center_gravity"
     for hid in ["%03d" % x for x in range(1, 125)]:
         for style in ["bg", "cl", "nm"]:
             if style == "nm":
