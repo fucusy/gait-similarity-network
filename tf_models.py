@@ -55,21 +55,50 @@ def siamses_test_share_part(x, weights, biases):
     out = tf.nn.dropout(out, dropout)
     return out
 
+def benchmark_part(x, weights, biases):
+    conv1 = maxpool2d(x, k=2) # 105 * 35
+    fc1 = tf.reshape(conv1, [-1, 105 * 35])
+    return fc1
+
+def benchmark(lr=1e-3):
+    """
+    return a list of var
+    """
+    x1 = tf.placeholder(tf.float32, [None, 210, 70, 1])
+    x2 = tf.placeholder(tf.float32, [None, 210, 70, 1])
+    y = tf.placeholder(tf.float32, [None, 1])
+    # Store layers weight & bias
+    output_dim = config.CNN.output_dim
+    weights = {
+    }
+    biases = {
+    }
+    left = benchmark_part(x1, weights, biases)
+    right = benchmark_part(x2, weights, biases)
+    distance  = tf.sqrt(tf.reduce_mean(tf.pow(tf.sub(left, right),2),1,keep_dims=True))   
+    loss = contrastive_loss(y, distance) 
+    val_loss = contrastive_loss(y, distance) 
+    optimizer = None
+    return x1, x2, y, left, right, distance, loss, val_loss, optimizer
+
 def siamses_vgg_like_part(x, weights, biases):
     dropout = 0.5
     conv1 = conv2d(x, weights['wc1'], biases['bc1'])
-    conv2 = conv2d(conv1, weights['wc2'], biases['bc2'])
-    conv3 = maxpool2d(conv2, k=2)
+    conv1 = maxpool2d(conv1, k=2) # 105 * 35
 
     paddings = [[0, 0], [1, 0], [1, 0], [0, 0]]
-    conv3 = tf.pad(conv3, paddings,mode='CONSTANT')
+    conv1 = tf.pad(conv1, paddings,mode='CONSTANT') # 106 * 36
 
-    conv4 = conv2d(conv3, weights['wc3'], biases['bc3'])
-    conv5 = conv2d(conv4, weights['wc4'], biases['bc4'])
+    conv2 = conv2d(conv1, weights['wc2'], biases['bc2'])
+    conv2 = maxpool2d(conv2, k=2) # 53 * 18
 
-    conv6 = maxpool2d(conv5, k=2)
-    fc1 = tf.reshape(conv6, [-1, weights['out'].get_shape().as_list()[0]])
+    paddings = [[0, 0], [1, 0], [0, 0], [0, 0]]
+    conv2 = tf.pad(conv2, paddings,mode='CONSTANT') # 54 * 18
 
+    conv3 = conv2d(conv2, weights['wc3'], biases['bc3'])
+    conv3 = maxpool2d(conv3, k=2)  # 27 * 9
+
+    fc1 = tf.reshape(conv3, [-1, weights['out'].get_shape().as_list()[0]])
     fc1 = tf.nn.dropout(fc1, dropout)
     out = tf.add(tf.matmul(fc1, weights['out']), biases['out'])
     return out
@@ -85,21 +114,15 @@ def siamses_vgg_like(lr = 1e-3):
     # Store layers weight & bias
     weights = {
         # 3x3 conv, 1 input, 16 outputs
-        'wc1': tf.Variable(tf.random_normal([3, 3, 1, 16])),
-
-        'wc2': tf.Variable(tf.random_normal([3, 3, 16, 16])),
-
+        'wc1': tf.Variable(tf.random_normal([3, 3, 1, 8])),
+        'wc2': tf.Variable(tf.random_normal([3, 3, 8, 16])),
         'wc3': tf.Variable(tf.random_normal([3, 3, 16, 32])),
-
-        'wc4': tf.Variable(tf.random_normal([3, 3, 32, 32])),
-
-        'out': tf.Variable(tf.random_normal([53*18*32, output_dim])),
+        'out': tf.Variable(tf.random_normal([27*9*32, output_dim])),
     }
     biases = {
-        'bc1': tf.Variable(tf.random_normal([16])),
+        'bc1': tf.Variable(tf.random_normal([8])),
         'bc2': tf.Variable(tf.random_normal([16])),
         'bc3': tf.Variable(tf.random_normal([32])),
-        'bc4': tf.Variable(tf.random_normal([32])),
         'out': tf.Variable(tf.random_normal([output_dim])),
     }
 
@@ -181,39 +204,6 @@ def siamses_deep(lr = 1e-3):
 
     return x1, x2, y, left, right, distance, loss, val_loss, optimizer
 
-def siamses_test_advance(lr=1e-3):
-    """
-    return a list of var
-    """
-    x1 = tf.placeholder(tf.float32, [None, 210, 70, 1])
-    x2 = tf.placeholder(tf.float32, [None, 210, 70, 1])
-    y = tf.placeholder(tf.float32, [None, 1])
-    # Store layers weight & bias
-
-    output_dim = config.CNN.output_dim
-    weights = {
-        # 5x5 conv, 1 input, 32 outputs
-        'wc1': tf.Variable(tf.random_normal([5, 5, 1, 32])),
-        # 5x5 conv, 32 inputs, 64 outputs
-        'wc2': tf.Variable(tf.random_normal([5, 5, 32, 64])),
-        # fully connected, 7*7*64 inputs, 1024 outputs
-        'out': tf.Variable(tf.random_normal([21*7*64, output_dim])),
-        # 1024 inputs, 10 outputs (class prediction)
-    }
-    biases = {
-        'bc1': tf.Variable(tf.random_normal([32])),
-        'bc2': tf.Variable(tf.random_normal([64])),
-        'out': tf.Variable(tf.random_normal([output_dim])),
-    }
-    left = siamses_test_share_part(x1, weights, biases)
-    right = siamses_test_share_part(x2, weights, biases)
-    distance  = tf.sqrt(tf.reduce_mean(tf.pow(tf.sub(left, right),2),1,keep_dims=True))   
-    loss = contrastive_loss(y, distance) 
-    val_loss = contrastive_loss(y, distance) 
-    optimizer = tf.train.AdamOptimizer(lr).minimize(loss)
-
-    return x1, x2, y, left, right, distance, loss, val_loss, optimizer
-
 def siamses_test(lr=1e-3):
     """
     return a list of var
@@ -252,8 +242,7 @@ def get_accuracy(sess, dataset, x1, x2, left, right, distance):
     g_vectors = []
     g_vectors = sess.run(right, feed_dict={x2:g_imgs})
     nm_view_2_accu = [{}, {}, {}]
-    #conds = ['nm', 'cl', 'bg']
-    conds = ['nm']
+    conds = config.data.test_accu
     K = config.CNN.K
     for cond_i, cond in enumerate(conds):
         for probe_view in ["%03d" % x for x in range(0, 181, 18)]:
