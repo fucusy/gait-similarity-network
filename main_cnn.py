@@ -54,7 +54,8 @@ def main(data, val_data, test_data):
                 logging.info("epoch %02d, batch count, %05d: Minibatch loss=%0.2f" % (i, batch_count, loss_val))
                 summary_writer.add_summary(summary, batch_count)
 
-                sess.run(optimizer, feed_dict={x1: batch_x[0], x2:batch_x[1], y: batch_y})
+                if optimizer is not None:
+                    sess.run(optimizer, feed_dict={x1: batch_x[0], x2:batch_x[1], y: batch_y})
                 if batch_count % val_every_batch == 0:
                     if not val_data.have_next():
                         val_data.reset_index()
@@ -70,9 +71,19 @@ def main(data, val_data, test_data):
                     test_nm_accu, test_cl_accu, test_bg_accu = \
                         get_accuracy(sess, test_data,x1, x2,left,right,distance)
                     d = collections.OrderedDict()
-                    d["tra nm"] = train_nm_accu
-                    d["tes nm"] =  test_nm_accu
-                    d["val nm"] = val_nm_accu
+
+                    for name in ["tra", "tes", "val"]:
+                        for cond in ["nm", "cl", "bg"]:
+                            key = "%s %s" % (name, cond)
+                            value_name = ''
+                            if name == 'tra':
+                                value_name += 'train'
+                            elif name == 'tes':
+                                value_name += 'test'
+                            else:
+                                value_name += 'val'
+                            value_name += '_%s_accu' % cond
+                            d[key] = globals()[value_name]
                     output = output_res(d)
                     logging.info(output)
 
