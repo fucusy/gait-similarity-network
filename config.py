@@ -41,7 +41,8 @@ class data:
     test_seq = ["01", "02"] 
     test_angle = "054"
 
-    train_img_dirs = ["/home/chenqiang/data/CASIA_gait_data_GEI"]
+    train_img_dirs = ["/home/chenqiang/data/CASIA_gait_data_GEI_center_gravity"]
+    test_accu = ['nm']
 
 class CNN:
     #
@@ -77,9 +78,9 @@ class CNN:
 
     load_image_to_memory_every_time_when_test = 8192
 
-    val_every = 50 # [10, 20, 40]
+    val_every = 20 # [10, 20, 40]
     lr = 1e-3
-    margin = 10 # [1, 10, 100, 1000]
-    model_name = 'siamses_vgg_like'
-    K = 4
-    output_dim = 512 # [512, 1024, 2048, 4096]
+    margin = 5 # [1, 10, 100, 1000]
+    model_name = 'benchmark'
+    K = 5
+    output_dim = 4096 # [512, 1024, 2048, 4096]

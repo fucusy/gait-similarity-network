@@ -82,7 +82,8 @@ def main(data, val_data, test_data):
                                 value_name += 'test'
                             else:
                                 value_name += 'val'
-                            value_name += '_%s_accu' % cond
+                            value_nameglobals()[value_name] += '_%s_accu' % cond
+                            print globals()[value_name]
                             d[key] = globals()[value_name]
                     output = output_res(d)
                     logging.info(output)

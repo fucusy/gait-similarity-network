@@ -9,22 +9,29 @@ import collections
 
 def output_res(accu_dic):
     """
-    params:ordered dic, accu_dic: "nm val" => {"000":0.91, "018":0.11, ...}
+    params:ordered dic, accu_dic: "nm val" => {"000":{"000":0.95, "018":0.98}, "018":{"000":0.95, "018":0.98} ...}
+    the first key angle is probe_view, second key angle is gallery_view
     """
     output = ''
-    output += '\n'
-    output += '\t'.join(["type :"] + ["%03d" % x for x in range(0, 181, 18)] + ['avg'])
     for key in accu_dic.keys():
-        key_str = "%s:\t" % key
+        output += '\n'
+        output += '\t'.join(["type:", "gallery"] + ["%03d" % x for x in range(0, 181, 18)] + ['avg'])
+        output += '\n'
+        output += "%s:\tprobe" % key
         accu_sum = 0.0
-        for tmp in ["%03d" % x for x in range(0, 181, 18)]:
-            if tmp in accu_dic[key].keys():
-                key_str += "%0.2f\t" % accu_dic[key][tmp]
-                accu_sum += accu_dic[key][tmp]
-            else:
-                key_str += "null\t"
-        key_str += '%0.2f\t' % (accu_sum / 11.0)
-        output += '\n%s' % key_str
+        for probe_view in ["%03d" % x for x in range(0, 181, 18)]:
+            key_str = "empt\t%s\t" % probe_view
+            for gallery_view in ["%03d" % x for x in range(0, 181, 18)]:
+                accu_sum = 0.0
+                if probe_view in accu_dic[key].keys()\
+                    and gallery_view in accu_dic[key][probe_view]:
+                    key_str += "%0.2f\t" % accu_dic[key][probe_view][gallery_view]
+                    accu_sum += accu_dic[key][probe_view][gallery_view]
+                else:
+                    key_str += "null\t"
+            key_str += '%0.2f\t' % (accu_sum / 11.0)
+            output += '\n%s' % key_str
+        output += '\n'
     return output
     
 # Create some wrappers for simplicity
@@ -238,74 +245,78 @@ def siamses_test(lr=1e-3):
 
 def get_accuracy(sess, dataset, x1, x2, left, right, distance):
     # caculate reconition accuracy
-    g_imgs, g_labels = dataset.get_gallerys()
-    g_vectors = []
-    g_vectors = sess.run(right, feed_dict={x2:g_imgs})
-    nm_view_2_accu = [{}, {}, {}]
+
     conds = config.data.test_accu
     K = config.CNN.K
+    correct_count = 0
+    total_count = 0
+    nm_view_2_accu = [{}, {}, {}]
     for cond_i, cond in enumerate(conds):
         for probe_view in ["%03d" % x for x in range(0, 181, 18)]:
-            correct_count = 0
-            total_count = 0
-            for label in dataset.labels:
-                p_imgs = dataset.get_probes(label, probe_view, cond)
-                if len(p_imgs) == 0:
-                    logging.warning("no probes of at label:%s, view:%s, cond:%s" % (label, probe_view, cond))
-                    continue
-                p_vectors = sess.run(right, feed_dict={x2:p_imgs})
-                for p_v in p_vectors:
-                    label_2_dists = {}
-                    total_count += 1
-                    for i in range(len(g_imgs)):
-                        g_v = g_vectors[i]
-                        g_l = g_labels[i]
-                        left_val = p_v.reshape((1, p_v.shape[0]))
-                        right_val = g_v.reshape((1, g_v.shape[0]))
-                        d = sess.run(distance,\
-                            feed_dict={\
-                                left:left_val,right:right_val})
-                        d = d[0]
-                        if g_l not in label_2_dists:
-                            label_2_dists[g_l] = [d,]
-                        else:
-                            label_2_dists[g_l].append(d)
-                    for l in label_2_dists.keys(): 
-                        label_2_dists[l] = sorted(label_2_dists[l])[:K]
-                    label_nearest_count = {}
-                    for tmp in range(K):
-                        min_dist = float("inf")
-                        min_label = "no_label"
-                        for l in label_2_dists.keys():
-                            if len(label_2_dists[l]) > 0 and\
-                                    label_2_dists[l][0] < min_dist:
-                                min_dist = label_2_dists[l][0]
-                                min_label = l
-                        del label_2_dists[min_label][0]
-                        if min_label not in label_nearest_count:
-                            label_nearest_count[min_label] = 0
-                        else:
-                            label_nearest_count[min_label] += 1
-                    max_count = 0
-                    max_label = "no_label"
-                    for l in label_nearest_count.keys():
-                        if label_nearest_count[l] > max_count:
-                            max_count = label_nearest_count[l]
-                            max_label = l
+            for gallery_view in ["%03d" % x for x in range(0, 181, 18)]:
+                g_imgs, g_labels = dataset.get_gallerys(gallery_view)
+                g_vectors = []
+                g_vectors = sess.run(right, feed_dict={x2:g_imgs})
+                for label in dataset.labels:
+                    p_imgs = dataset.get_probes(label, probe_view, cond)
+                    if len(p_imgs) == 0:
+                        logging.warning("no probes of at label:%s, view:%s, cond:%s" % (label, probe_view, cond))
+                        continue
+                    p_vectors = sess.run(right, feed_dict={x2:p_imgs})
+                    for p_v in p_vectors:
+                        label_2_dists = {}
+                        total_count += 1
+                        for i in range(len(g_imgs)):
+                            g_v = g_vectors[i]
+                            g_l = g_labels[i]
+                            left_val = p_v.reshape((1, p_v.shape[0]))
+                            right_val = g_v.reshape((1, g_v.shape[0]))
+                            d = sess.run(distance,\
+                                feed_dict={\
+                                    left:left_val,right:right_val})
+                            d = d[0]
+                            if g_l not in label_2_dists:
+                                label_2_dists[g_l] = [d,]
+                            else:
+                                label_2_dists[g_l].append(d)
+                        for l in label_2_dists.keys(): 
+                            label_2_dists[l] = sorted(label_2_dists[l])[:K]
+                        label_nearest_count = {}
+                        for tmp in range(K):
+                            min_dist = float("inf")
+                            min_label = "no_label"
+                            for l in label_2_dists.keys():
+                                if len(label_2_dists[l]) > 0 and\
+                                        label_2_dists[l][0] < min_dist:
+                                    min_dist = label_2_dists[l][0]
+                                    min_label = l
+                            del label_2_dists[min_label][0]
+                            if min_label not in label_nearest_count:
+                                label_nearest_count[min_label] = 0
+                            else:
+                                label_nearest_count[min_label] += 1
+                        max_count = 0
+                        max_label = "no_label"
+                        for l in label_nearest_count.keys():
+                            if label_nearest_count[l] > max_count:
+                                max_count = label_nearest_count[l]
+                                max_label = l
 
-                    if max_label == label:
-                        correct_count += 1
-            if total_count > 0:
-                accur = correct_count * 1.0 / total_count
-            else:
-                accur = 0
-            nm_view_2_accu[cond_i][probe_view] = accur
+                        if max_label == label:
+                            correct_count += 1
+                if total_count > 0:
+                    accur = correct_count * 1.0 / total_count
+                else:
+                    accur = 0
+                if probe_view not in nm_view_2_accu[cond_i]:
+                    nm_view_2_accu[cond_i][probe_view] = {}
+                nm_view_2_accu[cond_i][probe_view][gallery_view] = accur
     return nm_view_2_accu
 
 
 if __name__ == '__main__':
-    train_nm_accu = {"000": 0.91, "180": 0}
-    test_nm_accu = {"054": 0.99, "180": 100}
+    train_nm_accu = {"000":{"000":0.91, "180": 0}}
+    test_nm_accu = {"018":{"054": 0.99, "180": 100}}
     d = collections.OrderedDict()
     d["tra nm"] = train_nm_accu
     d["tes nm"] =  test_nm_accu
