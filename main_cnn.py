@@ -65,15 +65,21 @@ def main(data, val_data, test_data):
                     summary_writer.add_summary(summary, batch_count)
                     logging.info("epoch %02d, val loss=%0.2f" % (i, loss_val))
                     train_nm_accu, train_cl_accu, train_bg_accu = \
-                        get_accuracy(sess, data, x1, x2,left,right,distance)
+                        get_accuracy(sess, data, x1, x2\
+                                    ,left,right,distance, fake=False)
+
                     val_nm_accu, val_cl_accu, val_bg_accu = \
-                        get_accuracy(sess, val_data,x1, x2,left,right,distance)
+                        get_accuracy(sess, data, x1, x2\
+                                    ,left,right,distance, fake=False)
+
                     test_nm_accu, test_cl_accu, test_bg_accu = \
-                        get_accuracy(sess, test_data,x1, x2,left,right,distance)
+                        get_accuracy(sess, data, x1, x2\
+                                    ,left,right,distance, fake=False)
+
                     d = collections.OrderedDict()
 
-                    for name in ["tra", "tes", "val"]:
-                        for cond in ["nm", "cl", "bg"]:
+                    for cond in ["nm", "cl", "bg"]:
+                        for name in ["tra", "tes", "val"]:
                             key = "%s %s" % (name, cond)
                             value_name = ''
                             if name == 'tra':
@@ -82,9 +88,8 @@ def main(data, val_data, test_data):
                                 value_name += 'test'
                             else:
                                 value_name += 'val'
-                            value_nameglobals()[value_name] += '_%s_accu' % cond
-                            print globals()[value_name]
-                            d[key] = globals()[value_name]
+                            value_name += '_%s_accu' % cond
+                            d[key] = eval(value_name)
                     output = output_res(d)
                     logging.info(output)
 

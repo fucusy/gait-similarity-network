@@ -20,9 +20,9 @@ def output_res(accu_dic):
         output += "%s:\tprobe" % key
         accu_sum = 0.0
         for probe_view in ["%03d" % x for x in range(0, 181, 18)]:
-            key_str = "empt\t%s\t" % probe_view
+            key_str = "****\t%s\t" % probe_view
+            accu_sum = 0.0
             for gallery_view in ["%03d" % x for x in range(0, 181, 18)]:
-                accu_sum = 0.0
                 if probe_view in accu_dic[key].keys()\
                     and gallery_view in accu_dic[key][probe_view]:
                     key_str += "%0.2f\t" % accu_dic[key][probe_view][gallery_view]
@@ -243,8 +243,15 @@ def siamses_test(lr=1e-3):
 
     return x1, x2, y, left, right, distance, loss, val_loss, optimizer
 
-def get_accuracy(sess, dataset, x1, x2, left, right, distance):
+def get_accuracy(sess, dataset, x1, x2, left, right, distance, fake=False):
     # caculate reconition accuracy
+    if fake is True:
+        nm_view_2_accu = [{}, {}, {}]
+        train_nm_accu = {"000":{"000":0.91, "180": 0}}
+        test_nm_accu = {"018":{"054": 0.99, "180": 0.80}}
+        nm_view_2_accu[0] = train_nm_accu
+        nm_view_2_accu[1] = test_nm_accu
+        return nm_view_2_accu
 
     conds = config.data.test_accu
     K = config.CNN.K
