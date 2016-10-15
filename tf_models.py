@@ -88,7 +88,7 @@ def benchmark(lr=1e-3):
     optimizer = None
     return x1, x2, y, left, right, distance, loss, val_loss, optimizer
 
-def siamses_vgg_like_part(x, weights, biases):
+def vgg_like_part(x, weights, biases):
     dropout = 0.5
     conv1 = conv2d(x, weights['wc1'], biases['bc1'])
     conv1 = maxpool2d(conv1, k=2) # 105 * 35
@@ -110,7 +110,7 @@ def siamses_vgg_like_part(x, weights, biases):
     out = tf.add(tf.matmul(fc1, weights['out']), biases['out'])
     return out
 
-def siamses_vgg_like(lr = 1e-3):
+def vgg_like(lr = 1e-3):
     """
     return a list of var
     """
@@ -133,8 +133,8 @@ def siamses_vgg_like(lr = 1e-3):
         'out': tf.Variable(tf.random_normal([output_dim])),
     }
 
-    left = siamses_vgg_like_part(x1, weights, biases)
-    right = siamses_vgg_like_part(x2, weights, biases)
+    left = vgg_like_part(x1, weights, biases)
+    right = vgg_like_part(x2, weights, biases)
     distance  = tf.sqrt(tf.reduce_mean(tf.pow(tf.sub(left, right),2),1,keep_dims=True))   
     loss = contrastive_loss(y, distance) 
     val_loss = contrastive_loss(y, distance) 

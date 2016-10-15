@@ -15,8 +15,8 @@ def main(data, val_data, test_data):
     model = getattr(tf_models, config.CNN.model_name)
     x1, x2, y, left, right, distance,loss,val_loss,optimizer=model(lr=config.CNN.lr)
     init = tf.initialize_all_variables()
-    epoch = 2
-    fragment_size = 512
+    epoch = config.CNN.epoch
+    fragment_size = config.CNN.batch_size
     batch_count = 0
     val_every_batch = config.CNN.val_every
 
@@ -34,7 +34,6 @@ def main(data, val_data, test_data):
         tmp += 1
         logs_path = './tensorflow_logs/%05d' % tmp
     os.makedirs(logs_path)
-        
 
     summary_writer = tf.train.SummaryWriter(logs_path,graph=tf.get_default_graph())
     tf.scalar_summary("train loss", loss)
@@ -45,8 +44,8 @@ def main(data, val_data, test_data):
           "\nThen open http://0.0.0.0:6006/ into your web browser")
     with tf.Session() as sess:
         sess.run(init)
-        data.reset_index()
         for i in range(epoch):
+            data.reset_index()
             while data.have_next():
                 batch_count += 1
                 batch_x, batch_y, _ = data.next_fragment(fragment_size, need_label=True)
