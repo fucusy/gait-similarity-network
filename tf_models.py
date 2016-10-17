@@ -14,6 +14,9 @@ def output_res(accu_dic):
     """
     output = ''
     for key in accu_dic.keys():
+        if len(accu_dic[key]) == 0:
+            output += '\nskip %s\n' % key
+            continue
         output += '\n'
         output += '\t'.join(["type:", "gallery"] + ["%03d" % x for x in range(0, 181, 18)] + ['avg'])
         output += '\n'
@@ -324,9 +327,11 @@ def get_accuracy(sess, dataset, x1, x2, left, right, distance, fake=False):
 if __name__ == '__main__':
     train_nm_accu = {"000":{"000":0.91, "180": 0}}
     test_nm_accu = {"018":{"054": 0.99, "180": 100}}
+    val_nm_accu = {}
     d = collections.OrderedDict()
     d["tra nm"] = train_nm_accu
     d["tes nm"] =  test_nm_accu
+    d["val nm"] =  val_nm_accu
     level = logging.INFO
     FORMAT = '%(asctime)-12s[%(levelname)s] %(message)s'
     logging.basicConfig(level=level, format=FORMAT, datefmt='%Y-%m-%d %H:%M:%S')
