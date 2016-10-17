@@ -33,15 +33,17 @@ def main(data, val_data, test_data):
     while os.path.exists(logs_path):
         tmp += 1
         logs_path = './tensorflow_logs/%05d' % tmp
+    logging.info("log path %s" % logs_path)
     os.makedirs(logs_path)
 
     summary_writer = tf.train.SummaryWriter(logs_path,graph=tf.get_default_graph())
     tf.scalar_summary("train loss", loss)
     tf.scalar_summary("validation loss", val_loss)
     merged_summary_op = tf.merge_all_summaries()
-    print("Run the command line:\n" \
-          "--> tensorboard --logdir=./tensorflow_logs " \
-          "\nThen open http://0.0.0.0:6006/ into your web browser")
+    logging.info("Run the command line:\n \
+          --> tensorboard --logdir=%s\n \
+          Then open http://0.0.0.0:6006/ into your web browser" % logs_path)
+        
     with tf.Session() as sess:
         sess.run(init)
         for i in range(epoch):
@@ -63,34 +65,35 @@ def main(data, val_data, test_data):
                     loss_val, summary = sess.run([val_loss, merged_summary_op], feed_dict={x1: batch_x[0], x2:batch_x[1], y: batch_y})
                     summary_writer.add_summary(summary, batch_count)
                     logging.info("epoch %02d, val loss=%0.2f" % (i, loss_val))
-                    train_nm_accu, train_cl_accu, train_bg_accu = \
-                        get_accuracy(sess, data, x1, x2\
-                                    ,left,right,distance, fake=False)
 
-                    val_nm_accu, val_cl_accu, val_bg_accu = \
-                        get_accuracy(sess, data, x1, x2\
-                                    ,left,right,distance, fake=False)
+            train_nm_accu, train_cl_accu, train_bg_accu = \
+                get_accuracy(sess, data, x1, x2\
+                            ,left,right,distance, fake=False)
 
-                    test_nm_accu, test_cl_accu, test_bg_accu = \
-                        get_accuracy(sess, data, x1, x2\
-                                    ,left,right,distance, fake=False)
+            val_nm_accu, val_cl_accu, val_bg_accu = \
+                get_accuracy(sess, data, x1, x2\
+                            ,left,right,distance, fake=False)
 
-                    d = collections.OrderedDict()
+            test_nm_accu, test_cl_accu, test_bg_accu = \
+                get_accuracy(sess, data, x1, x2\
+                            ,left,right,distance, fake=False)
 
-                    for cond in ["nm", "cl", "bg"]:
-                        for name in ["tra", "tes", "val"]:
-                            key = "%s %s" % (name, cond)
-                            value_name = ''
-                            if name == 'tra':
-                                value_name += 'train'
-                            elif name == 'tes':
-                                value_name += 'test'
-                            else:
-                                value_name += 'val'
-                            value_name += '_%s_accu' % cond
-                            d[key] = eval(value_name)
-                    output = output_res(d)
-                    logging.info(output)
+            d = collections.OrderedDict()
+
+            for cond in ["nm", "cl", "bg"]:
+                for name in ["tra", "tes", "val"]:
+                    key = "%s %s" % (name, cond)
+                    value_name = ''
+                    if name == 'tra':
+                        value_name += 'train'
+                    elif name == 'tes':
+                        value_name += 'test'
+                    else:
+                        value_name += 'val'
+                    value_name += '_%s_accu' % cond
+                    d[key] = eval(value_name)
+            output = output_res(d)
+            logging.info(output)
 
 if __name__ == '__main__':
     level = logging.INFO
